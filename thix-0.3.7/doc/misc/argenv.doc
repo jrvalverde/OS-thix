@@ -1,0 +1,3 @@
+ca sa se modifice adresa de inceput a stivei pentru procese (argv + env sa
+aiba mai mult loc se va modifica MAX_ARGENV. Formula trebuie modificata
+(desi nu cred ca va fi cazul) in exec.c, startinit.c si startup.s.

@@ -1,0 +1,64 @@
+
+	Sleep() si wakeup() sint doua functii de baza in cadrul sistemului.
+Ele nu sunt apelate decat de functii din kernel si constituie mecanismul
+prin care procesele care nu se mai pot executa din cauza nedisponibilitatii
+unei resurse sunt suspendate temporar (pana cand resursa devine disponibila)
+pentru a nu ocupa inutil timp procesor.
+
+
+	De fiecare data cand un proces vrea sa-si aloce o resursa ( memorie,
+inod, ... ) si acea resursa nu este disponibila, el va face un sleep pe o
+adresa. Adresa in sine nu are mare importanta, dar este foarte important ca
+procesul care elibereaza resursa sa o cunoasca.
+
+	Filmul este urmatorul :	 ( presupunem ca resursa este memoria )
+
+	a. - procesul Y vrea sa-si aloce o pagina, dar nu mai exista pagini
+	   libere in memorie. El va executa un sleep(&get_page) ( unde
+	   get_page() este functia care aloca pagini si are & in fata numai
+	   pentru a sublinia faptul ca se doarme pe adresa ei ). In sleep()
+	   procesul este inserat intr-o tabela hash si este marcat
+	   PROCESS_STOPPED (doar deocamdata, vezi ce scrie mai jos) dupa care
+	   se executa int $32 pentru a se realiza trecerea la taskul urmator
+	   ( un proces marcat altfel decat PROCESS_RUNNING nu este luat in
+	   considerare de task scheduler ).
+
+	b. - procesul Y ( sau swapperul ) elibereaza o pagina. El va executa
+	   un wakeup(&get_page) trezind astfel toate procesele care dorm pe
+	   adresa get_page (deci si pe procesul X ). Procesele care asteapta
+	   eliberarea resursei stau intr-o bucla de tipul :
+		while (resursa ocupata)
+		    sleep(& ... )
+	   Dupa ce wakeup se termina, toate procesele care au dormit pe
+	   adresa get_page vor fi luate in considerare de task scheduler si
+	   primul dintre ele care va primi controlul va face din nou testul
+	   din while, va gasi resursa (pagina) disponibila si si-o va aloca.
+	   Celelalte, cind vor primi controlul vor gasi in testul din while
+	   resursa ocupata si se vor culca din nou. In general, in afara de
+	   cazul memoriei, situatia in care mai multe procese dorm asteptind
+	   aceeasi resursa este rara deci nu are importanta ca unele procese
+	   sunt trezite pentru a se culca din nou imediat.
+
+
+	Functia get_process(&address) va folosi in situatia in care swapperul
+ajunge la concluzia ca nu mai poate elibera memorie si decide sa distruga
+procesele care asteapta memorie. Evident nu trebuie sa le distruga pe toate
+deodata pentru ca distrugand unul se mai elibereaza memorie si poate fi
+suficienta pentru celelalte. Probabil ca strategia de distrugere va fi in
+functie de prioritatea procesului.
+
+	La sfarsitul lui sleep, inainte de a se apela int $0x20 pentru a
+trece la procesul urmator, vor trebui recalculate prioritatile proceselor.
+
+	Sleep este o rutina care valideaza intreruperile deci in momentul
+apelarii ei trebuie ca datele sistemului de operare sa fie intr-o forma
+stabila in asa fel incit un alt proces care se executa pe durata somnului
+primului sa poata face modificari in structurile sistemului fara sa le dea
+peste cap.
+
+	In general rutinele din kernel sint scurte si se executa cu intreru-
+perile dezactivate sau, cum e swapperul de exemplu, le activeaza doar cind
+datele sunt intr-o stare corecta. Exceptie de la aceasta regula face rutina
+de fault de pagina care incuie pagina a carei structura nu a fost completata
+pentru a preveni accesul la structurile paginii respective al swapperului
+sau al rutinei de fault de pagina a altor procese.

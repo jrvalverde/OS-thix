@@ -1,0 +1,62 @@
+\begin{slide}{}
+
+
+{\small \bf \center 4. The Thix File System\\
+}
+
+\vspace{2cm}
+
+{\tiny {\em Thix} provides a native file system, designed to be fast
+and fault tolerant.  The file system is divided into clusters, each
+cluster containing blocks and inodes.  This approach has several
+advantages over the original Unix System V implementation (a file
+system using a linked list for block allocation):
+
+\vspace{1cm}
+
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - the file system fragmentation can be controlled by\\
+\> trying to allocate all the file blocks from one cluster.
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - the seek time can be optimized; by allocating blocks and\\
+\> inodes from the same cluster, files will not be scattered all\\
+\> over the file system
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - there is no need to parse the entire inode area in\\
+\> order to find free inodes; a new inode can be found by\\
+\> searching the current cluster's inodes bitmap
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - the file system is much more stable than in the\\
+\> original implementation
+\end{tabbing}
+
+\hspace{1cm} - a dynamically expandable buffer cache is provided
+
+\hspace{1cm} - a memory allocation mechanism is provided inside the kernel
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - the file system superblock has backups at the begining\\
+\> of each cluster
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - a fsck utility is provided; it is able to repair a really\\
+\> damaged file system with minimum data loss
+\end{tabbing}
+
+}
+
+\end{slide}

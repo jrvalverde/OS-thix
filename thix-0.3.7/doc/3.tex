@@ -1,0 +1,53 @@
+\begin{slide}{}
+
+
+{\small \bf \center 3. Virtual Memory Management\\
+}
+
+\vspace{2cm}
+
+{\tiny Virtual Memory has been implemented taking advantage of the
+flexible design of the Intel 80386 processors.
+
+\vspace{1cm}
+
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - each process has a completely different address space,\\
+\> build using a page directory and several page tables
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - text pages are allways shared between different\\
+\> instances of the same program
+\end{tabbing}
+
+\hspace{1cm} - data pages are shared as long as they are not modified
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - invalid memory references are always detected and the\\
+\> appropriate signal (SIGSEGV) is sent to the offending process
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - a swapper process is started each time the system\\
+\> is low on memory and starts swapping out unused pages
+\end{tabbing}
+
+\hspace{1cm} - a memory allocation mechanism is provided inside the kernel
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - the virtual memory size can be increased using multiple\\
+\> swap devices
+\end{tabbing}
+
+\hspace{1cm} - the kernel is able to get around the 80386 VM flaw
+
+}
+
+\end{slide}

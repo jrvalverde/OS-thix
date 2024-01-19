@@ -1,0 +1,4 @@
+limits.h	->	nu stiu care e treaba cu #include_next <limits.h>
+config.h	->	ar trebui inclus peste tot
+fcntl.h		->	de rezolvat dubla definire a lui creat
+stdlib.h	->	de restaurat atol, atoi OPTIMIZE

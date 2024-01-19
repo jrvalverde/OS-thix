@@ -1,0 +1,2962 @@
+\input texinfo @c -*-texinfo-*-
+@c %**start of header
+@setfilename thix.info
+@settitle The Thix Operating System Kernel
+@c For double-sided printing, uncomment:
+@c @setchapternewpage odd
+@c %**end of header
+
+@set EDITION 1.0
+@set VERSION 0.2
+@set UPDATED June 1995
+
+@iftex
+@finalout
+@end iftex
+
+@ifinfo
+@format
+START-INFO-DIR-ENTRY
+* Thix: (thix).         The Thix Operating System Kernel
+END-INFO-DIR-ENTRY
+@end format
+
+Thix: A new UNIX-like operating system, by Tudor Hulubei.
+
+This file documents the Thix kernel.
+
+Copyright (C) 1993, 1994, 1995 Tudor Hulubei
+
+Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission notice
+identical to this one except for the removal of this paragraph (this
+paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+@end ifinfo
+
+@titlepage
+@iftex
+@title The Thix Operating System Kernel
+@end iftex
+@subtitle Design and Architecture
+@subtitle Edition @value{EDITION}, for Thix version @value{VERSION}
+@subtitle @value{UPDATED}
+@author Tudor Hulubei
+@author Supervisor: Professor Serban Petrescu
+@author Department of Computer Science and Engineering
+@author "Politehnica" University of Bucharest
+@author Romania
+
+@ignore
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1993, 1994, 1995 Tudor Hulubei
+
+Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation
+approved by the author.
+@end ignore
+@end titlepage
+
+@node Top, Introduction, , (dir)
+@comment  node-name,  next,  previous,  up
+
+@ifinfo
+@code{Thix} is a new POSIX.1 compliant operating system.  This is
+edition @value{EDITION}, for Thix version @value{VERSION}.
+
+@end ifinfo
+
+@menu
+* Introduction::                An introduction to the Thix kernel.
+
+* Kernel::                      Kernel design.
+* Virtual Memory::              Virtual memory management.
+* File System::                 File system design.
+* Device Drivers::              Device drivers implementation.
+* System Startup::              System startup.
+
+* Current Status::              Current System Status
+* Future Work::                 Thix development.
+@end menu
+
+
+@node Introduction, Kernel, Top, Top
+@chapter Introduction
+
+
+This documentation presents the UNIX kernel I have written in 1994-1995.
+It's an almost complete implementation of the POSIX.1 standard (IEEE Std
+1003.1-1988).
+
+My main purpose was to learn about operating systems design and
+architecture, kernel algorithms, resource allocation, process
+scheduling, memory management policies, etc.  The result is a new POSIX
+compliant UNIX kernel with many features real operating systems have:
+virtual memory, demand paging, protection, swapping, etc.  It is not
+perfect, it probably has bugs, but in time they will get fixed and the
+kernel will become more stable.  Since many high-quality free software
+is available on the Internet, coming especially from the GNU project, I
+have ported many of them to my system, with the idea of getting real
+functionality.
+
+This documentation is intended as a general presentation of the kernel,
+not as a detailed description of the source code.  It contains, of
+course, examples of kernel data structures and algorithms, but just to
+give an idea about the actual implementation.  Some of the examples are
+quite big, especially the TSS structure, the page fault routines and the
+swapper main loop.  I've tried to strip them down as much as possible,
+removing all the things that were not important in the context, but
+there is a limit in how much a given algorithm can be reduced and I was
+sometimes forced to leave it as it was, just to make sure that all the
+important steps have been described.
+
+Anyway, for a better idea about the overall kernel design, the complete
+kernel sources (including all the header files and additional utilities
+like fsck and mkfs) are included as an appendix.  Please consult them
+whenever the examples in this documentation appear as incomplete or
+confusing.
+
+
+@node Kernel, Virtual Memory, Introduction, top
+@chapter Kernel Design
+
+Thix is a monolithic kernel.  Such a kernel is usually less modular than
+a microkernel based one, due to the fact that totally independent parts
+of the code like the file system, memory and process management are
+build together into a big image called "the kernel" and the interface
+between them is not very well designed.  These different kernel modules
+communicate with each other using normal "call" instructions, while
+microkernel based kernel modules use IPC mechanisms for the same thing.
+This lack of "real" modularity makes monolithic kernel's design a little
+bit complicated, but this documentation is structured in such a way that
+you should have no problem figuring out which part of the kernel does
+which task.
+
+For the beginning, I will describe the implementation of process
+scheduling, signals, system calls, interrupts and exceptions, etc.
+Later, I will present the virtual memory mechanism, the file system, and
+the device drivers.  This will end with a small description of the
+system startup sequence.
+
+
+@menu
+* Processes::                   Process management.
+* Scheduling::                  Process scheduling.
+* Sleep and Wakeup::            Sleep and wakeup primitives.
+* Signals::                     Signals handling.
+* Timers::                      Kernel timers.
+* System Calls::                System calls interface.
+* Interrupts and Exceptions::   Interrupts and exceptions handling.
+* I/O::                         Low level I/O
+@end menu
+
+
+@node Processes, Scheduling, , Kernel
+@section Processes
+
+
+The main task of an operating system is running processes.  Also, a
+decent operating system should be able to run many processes at the same
+time.  This is called multitasking.  Processes should be protected
+against each other, in such a way that their environment cannot be
+affected by other processes errors.
+
+Thix is a multitasking kernel, so, as explained before, it is able to
+run different processes at the same time.  It provides protection and is
+fault tolerant.  It is heavily based on the Intel 80386/80486
+architecture, taking advantage of the full power of these processors.
+
+The kernel provides each process with its own address space
+(@xref{Virtual Memory}).  It also keeps a record containing almost all
+the information about the process's data structures, statistics, open
+file descriptors, etc. in a separate structure called @var{TSS}.  The
+@samp{u_area[]} table contains @var{SYSTEM_PROCESS_MAX} @var{TSS}
+structures, one for each process.  @var{SYSTEM_OPEN_MAX} is the maximum
+number of processes allowed to run at the same time.  It can be
+configured as needed when compiling the kernel.
+
+Each structure in @samp{u_area[]} maps on a Intel 80386 Task State
+Segment, a processor specific structure containing all the process
+registers (both general and segment), flags, the page directory and
+local descriptor table pointers.  In addition to the Intel stuff, the
+@samp{u_area[]} table contains process specific information as process
+ids, statistics, timers, user and group ids, signal masks, controlling
+terminals, etc.  Internally, the kernel identifies a process by its
+kernel process id (i.e. the process's index into the @samp{u_area[]}
+table).
+
+Here it is the complete structure of an @samp{u_area[]} entry (a
+@var{TSS} structure).  It should give an idea about the kind of
+information kept by the kernel for each running process.
+
+@example
+typedef struct
+@{
+    /* i80386 TSS */
+
+    unsigned BackLink;
+    unsigned ESP0;
+    unsigned SS0;
+    unsigned ESP1;
+    unsigned SS1;
+    unsigned ESP2;
+    unsigned SS2;
+    PGTBL **PGDIR;
+    unsigned EIP;
+    unsigned EFLAGS;
+    unsigned EAX;
+    unsigned ECX;
+    unsigned EDX;
+    unsigned EBX;
+    unsigned ESP;
+    unsigned EBP;
+    unsigned ESI;
+    unsigned EDI;
+    unsigned ES;
+    unsigned CS;
+    unsigned SS;
+    unsigned DS;
+    unsigned FS;
+    unsigned GS;
+    unsigned LDT;
+    unsigned IO_bitmap_offset;
+
+    /* End of i80386 TSS.  */
+
+    /* i80386 TSS auxiliary data (process data).  */
+    __pid_t pid;             /* Process id.  */
+    __pid_t ppid;            /* Parent process id.  */
+    __pid_t session;         /* Session id.  */
+    __pid_t pgrp;            /* Process group id.  */
+
+    int pkpid;               /* Parent kernel process id.  */
+
+    unsigned istack;         /* Process internal stack
+                                (kernel mode stack).  */
+
+    int text_pages;          /* Number of text pages in the executable.  */
+    int data_pages;          /* Number of data pages in the executable.  */
+    int bss_pages;           /* Number of bss  pages in the executable . */
+
+    unsigned brk;            /* Break value.  */
+    unsigned stk;            /* Stack value.  */
+    int max_brk;             /* Maximum break value in number of pages.  */
+    int max_stack;           /* Maximum stack value in number of pages.  */
+
+    void *sleep_address;     /* Process current sleeping address.  */
+    int wakeup_priority;     /* Process current wakeup priority.  */
+    int old_cpu_usage;       /* CPU usage before going to sleep.  */
+
+    _itimerval real;         /* Real interval timer.  */
+    _itimerval virtual;      /* Virtual interval timer.  */
+    _itimerval prof;         /* Profile interval timer.  */
+
+    rlimits limits;          /* Resource limits.  */
+
+    struct rusage usage;     /* Resource usage.  */
+    struct rusage cusage;    /* Dead children resource usage.  */
+
+    int cwd_inode;           /* Current directory inode.  */
+    unsigned short ufdt[256];/* User file descriptors table.  */
+
+    unsigned close_on_exec[8]; /* Close on exec bits.  */
+
+    int a_out_inode;         /* Executable inode.  */
+
+    int ff_ufd;              /* First free user file descriptor.  */
+
+    int umask;               /* Process umask.  */
+
+    __uid_t ruid, euid, suid; /* Real, effective and saved user  ids.  */
+    __gid_t rgid, egid, sgid; /* Real, effective and saved group ids.  */
+
+    char access_flag;        /* Flag used by sys_access() to force namei()
+                                to use ruid/rgid instead of euid/egid.  */
+
+    char kwreq;              /* Kernel write request flag. Set when a system
+                                call tries to write data in the user address
+                                space because  page protection faults  don't
+                                occur when running in kernel mode.  The page
+                                protection fault routine is called "by hand"
+                                from the page fault routine.  This  is  only
+                                useful when running on i386.  */
+
+    char children;           /* Number of children.  */
+    char swapable;           /* Swapable flag. Used by swapper to  determine
+                                if the process is currently swapable.  */
+
+    char status;             /* Process status.  */
+    char exec_flag;          /* The process has executed an 'exec' system call
+                                since it was forked.  It will be used by the
+                                setpgid() system call.  */
+
+    char leader;             /* The process is a session leader.  */
+
+    unsigned short exit_code;/* Process exit code.  */
+
+    __sigset_t sigpending;   /* Mask of pending signals.  */
+    __sigset_t sigblocked;   /* Mask of blocked signals.  */
+    struct sigaction sigactions[_NSIG]; /* Sigaction structures.  */
+
+    __time_t start_time;     /* Process start time.  */
+
+    __dev_t ctty;            /* Controlling terminal major/minor numbers.  */
+
+    char **argv;             /* Command line arguments pointer.  */
+    char **envp;             /* Environment pointer.  */
+
+    char args[132];          /* Command line string. I hope I will get rid of
+                                this one day...  */
+@} TSS;
+@end example
+
+
+@node Scheduling, Sleep and Wakeup, Processes, Kernel
+@section Process Scheduling
+
+
+Multitasking operating systems need a way to run different processes at
+the same time.  The process scheduler decides which process should
+receive the CPU at a given moment, depending on the current priority of
+every ready to run process.
+
+The Thix scheduler is small and fast.  It keeps a list of pointers to
+process lists, one for each priority level.  Even though user level
+priorities are between -19 and 19 with lower priority level meaning
+higher priority, the kernel deals with priorities between 1 and 55 with
+higher priority level really meaning higher priority.
+
+The kernel divides priorities into three categories:
+
+1. User level priorities.  These are priorities used by user level
+processes and map to kernel priorities between 1 and 39.
+
+2. Interruptible priority levels.  These are priorities used by
+processes running kernel code which need to wait for a "not sure" event
+(i.e. event that are not sure to happen, @xref{Sleep and Wakeup}).
+
+3. Uninterruptible priority levels.  These are priorities used by
+processes running kernel code and waiting a "sure" event.
+
+Each time the scheduler is called, it will pick up a process from the
+higher priority list that has one, move it on a lower priority list and
+then run it.  When all the @samp{ready to run} processes have reached
+the lowest priority level, they are moved back into the list
+corresponding to their base priority.  The scheduler remembers the last
+priority level used and starts checking from the highest priority level
+free list only when a new process wakes up.  In the normal case, the
+check for @samp{ready to run} processes starts at the remembered
+priority level and finds an eligible to run process at the very first
+step.  Due to this and to the fact that the assembly code generated for
+the main loop by the GNU C compiler is exactly 4 machine code
+instructions long, the scheduler is really fast.
+
+Intel processors reset their internal page cache at every context
+switch.  This is normal since after a context switch, the new scheduled
+process will use another hierarchy of page directory table and page
+tables and the entries in the processor cache will be invalid anyway.
+However, when the new scheduled process is the same as the previous one,
+no context switch will be done, in the attempt of avoiding an useless
+time consuming operation and of preserving the processor page cache.  In
+this special case, if the scheduler would access very scattered memory
+locations while trying to find a new process eligible to be run, most of
+the entries in the processor page cache would be lost.  This is the
+reason why the scheduler doesn't keep its data structures in the
+u_area[], a big per process structure used to keep information about all
+the processes in the system, but in separate data structures, trying to
+reduce as much as possible the changes in the processor page cache.
+Each entry of such a data structure looks like this:
+
+@example
+typedef struct
+@{
+    unsigned char prev;
+    unsigned char next;
+    unsigned char priority;             /* The process's base priority.  */
+    unsigned char cpu_usage;            /* Current process's ticks left.  */
+@} sched_struct;
+@end example
+
+
+Here is the main loop of the Thix process scheduler.  current_kpid and
+current_pid are two global variables that keep the current process's
+index into the process table and its id.
+
+@example
+int scheduler(void)
+@{
+    int priority;
+    int first_priority_level;
+    int kpid, old_kpid = current_kpid;
+
+
+    /* current_kpid == IDLE when the process calling scheduler() has
+       just exited.  */
+    if (current_kpid != IDLE)
+    @{
+        first_priority_level = sched_touched ? MAX_PRIORITY_LEVEL :
+                               sched_data[current_kpid].cpu_usage;
+
+        /* If the process is asleep, don't try to delete it from the
+           scheduler list.  */
+        if (this->status != PROCESS_ASLEEP)
+        @{
+            delete_schedulable_process(current_kpid);
+            new_schedulable_process(current_kpid,
+                                    --sched_data[current_kpid].cpu_usage);
+        @}
+    @}
+    else
+        first_priority_level = MAX_PRIORITY_LEVEL;
+
+    sched_touched = 0;
+
+    /* Loop through the priority lists, trying to find an eligible process
+       in their heads.  In most cases, we will find one at the very  first
+       loop.  However, when a new process has been  waked up, we  have  to
+       start searching from the highest priority list.  The process  waked
+       up is normally inserted in the head of a high priority list so even
+       in this situation there is a *big* chance to find it quickly.  */
+
+    for (priority = first_priority_level; priority; priority--)
+        if (sched_head[priority])
+        @{
+            kpid = sched_head[priority];
+            goto found;
+        @}
+
+    /* No process has been found yet.  All the processes have exceeded
+       their time quota.  So we have to reinsert them into their  base
+       priority list.  */
+
+    while ((kpid = sched_head[0]))
+    @{
+        delete_schedulable_process(kpid);
+        new_schedulable_process(kpid, sched_data[kpid].priority);
+    @}
+
+    /* Rescan the priority lists.  Maybe we can find a process ready
+       to run this time.  */
+
+    for (priority = MAX_PRIORITY_LEVEL; priority; priority--)
+        if (sched_head[priority])
+        @{
+            kpid = sched_head[priority];
+            goto found;
+        @}
+
+    /* Bad luck.  Invoke IDLE.  */
+    old_kpid = -1;
+    kpid = IDLE;
+
+   found:
+
+    /* Ok, we have found an eligible process.  */
+    this = &u_area[current_kpid = kpid];
+
+    tss_descr[current_kpid].low_flags = VALID_TSS_ARB;
+
+    /* Don't perform a context switch if the new selected process is the
+       same as the old one.  */
+    if (current_kpid == old_kpid)
+        return -1;
+
+    /* Returns the kernel process id of the process to switch to.  */
+    return current_kpid;
+@}
+@end example
+
+The new_schedulable_process() function adds a process to the list of the
+schedulable processes corresponding to the given priority.  The
+delete_schedulable_priority() function removes a process from the
+scheduler list corresponding to its priority and returns its CPU usage.
+Due to the nature of the implementation, the process is always found in
+the head of the list and, as a result, adding or removing processes to
+the scheduler list is just a matter of setting a few fields of some
+sched_data[] entries:
+
+@example
+inline void new_schedulable_process(int kpid, int priority)
+@{
+    sched_data[kpid].cpu_usage = priority;
+    sched_data[kpid].next = 0;
+
+    if (sched_head[priority])
+        sched_data[sched_tail[priority]].next = kpid;
+    else
+        sched_head[priority] = kpid;
+
+    sched_tail[priority] = kpid;
+@}
+@end example
+
+
+@node Sleep and Wakeup, Signals, Scheduling, Kernel
+@section Sleep and Wakeup
+
+
+Ones of the most used routines in the kernel are sleep() and wakeup().
+Each time a process must wait for a resource to become available or an
+event to occur, it will go to sleep until the process that uses that
+resource wakes it up.  That means the process changes its state from
+@samp{ready to run} to @samp{asleep} and then back to @samp{ready to
+run} when the resource becomes available or the event occurrs.  When the
+process wakes up it must check if the resource is really available and
+eventually go back to sleep if another process was scheduled before it
+and locked the resource again.
+
+There are many kinds of events a process can wait for: I/O completion,
+locked resources to become unlocked, free memory pages, signals,
+terminal input/output, etc.  Since some events, like I/O completion, are
+guaranteed to happen and some events, like terminal input, are not, the
+kernel use different sleep priorities for processes waiting different
+kinds of events (@samp{sure} or not).  Processes waiting for @samp{sure}
+events to happen are sleeping on higher priorities and cannot be
+interrupted, processes waiting for events that are not "sure" are
+sleeping on lower priorities and can be interrupted by signals.
+
+We must differentiate the priorities used for @samp{sure} events because
+it is more important to run a process that wakes up as a result of I/O
+completion than a process that wakes up because the superblock has
+become unlocked.  I/O completion will eventually free some buffers that
+the second process might need, so doing otherwise will affect the system
+performance.  As a result, I've used eight different priority levels for
+processes sleeping at an interruptible priority level and eight for
+processes sleeping at an uninterruptible priority level:
+
+@example
+/* Interruptible priority levels (40-47):  */
+
+#define WAIT_PIPE               40
+#define WAIT_SIGNAL             42
+#define WAIT_CHILD_EXIT         43
+#define WAIT_TTY_OUTPUT         45
+#define WAIT_TTY_INPUT          47
+
+
+/* Uninterruptible priority levels (48-55):  */
+
+#define WAIT_PAGE               48
+#define WAIT_INODE              49
+#define WAIT_SUPERBLOCK         50
+#define WAIT_SYNC               51
+#define WAIT_BUFFER             52
+#define WAIT_DEVICE_BUSY        53
+#define WAIT_DEVICE_IO          54
+#define WAIT_SWAPPER            55
+@end example
+
+
+@node Signals, Timers, Sleep and Wakeup, Kernel
+@section Signals
+
+
+Thix provides a POSIX.1 signals implementation.  Signals can be blocked
+or unblocked, a process can specify a signal mask or can read the mask
+of pending signals.  The kernel basically implements the
+@samp{sigprocmask}(), @samp{sigpending}(), @samp{sigsuspend}() and
+@samp{sigaction}() system calls.  The old style @samp{signal}() system
+call is emulated in the C library using the POSIX ones.
+
+Signals handling has been implemented using three fields in the u_area[]
+table for keeping track of pending signals, blocked signals and signal
+actions.  The @samp{sigpending} and @samp{sigblocked} fields contain one
+bit for each signal (signals numbers are between 1 and 31) while the
+@samp{sigactions} array contains a @samp{struct sigaction} structure for
+each signal.
+
+@example
+@{
+    ....
+    __sigset_t sigpending;              /* mask of pending signals. */
+    __sigset_t sigblocked;              /* mask of blocked signals. */
+    struct sigaction sigactions[_NSIG]; /* sigaction structures */
+    ....
+@}
+@end example
+@vindex sigpending
+@vindex sigblocked
+@vindex sigactions
+@vindex _NSIG
+
+The kernel checks for signals at every kernel to user level transition.
+This is done by calling the @samp{__issig}() function before returning
+to user mode.  If the process received a signal, its current stack is
+modified in order to jump to the corresponding signal handler (if any)
+before returning to the code where the process entered kernel mode as a
+result of an interrupt, exception or system call.  Signals are also
+checked before going to sleep, otherwise the processes might ignore a
+recent signal and go to sleep forever.
+
+Each time a process wants to send a signal to another process, it sets
+the corresponding bit into the @samp{sigpending} field of the
+destination process.
+
+Given a kernel process id and a signal number, the kill_kpid() routine
+sends that signal to the target process.  The kernel process id is not
+accessible from user level, but when the kill() system call is invoked,
+the process id number is converted to a kernel process id and then
+passed to this routine.
+
+@example
+void kill_kpid(int kpid, int signum)
+@{
+    /* The swapper can't receive signals.  It it does, something really
+       bad happened, so just PANIC!  */
+    if (kpid == SWAPPER)
+        PANIC("Swapper received signal %d\n", signum);
+
+    /* Don't send ignored signals to processes, unless we are dealing
+       with SIGCHLD.  */
+    if (u_area[kpid].sigactions[signum].sa_handler == SIG_IGN &&
+        signum != SIGCHLD)
+        return;
+
+    /* Send the signal.  */
+    u_area[kpid].sigpending |= 1 << signum;
+
+    /* If the process is asleep, wake it up.  */
+    if (status(kpid) == PROCESS_ASLEEP &&
+        wakeup_priority(kpid) < U_THRESHOLD_PRIORITY)
+        wakeup_process(kpid);
+@}
+@end example
+
+The first time the kernel checks for signals
+on behalf of the target process (in @samp{__issig}() or in @samp{sleep}(),
+as explained before) it will detect a pending signal (by simply checking
+if u_area[].sigpending == 0) and take the appropriate action.
+
+These are the signals defined in the thix/signals.h file.
+
+@example
+#define SIGHUP          1       /* Hangup (POSIX).  */
+#define SIGINT          2       /* Interrupt (ANSI).  */
+#define SIGQUIT         3       /* Quit (POSIX).  */
+#define SIGILL          4       /* Illegal instruction (ANSI).  */
+#define SIGABRT         SIGIOT  /* Abort (ANSI).  */
+#define SIGTRAP         5       /* Trace trap (POSIX).  */
+#define SIGIOT          6       /* IOT trap.  */
+#define SIGEMT          7       /* EMT trap.  */
+#define SIGFPE          8       /* Floating-point exception (ANSI).  */
+#define SIGKILL         9       /* Kill, unblockable (POSIX).  */
+#define SIGBUS          10      /* Bus error.  */
+#define SIGSEGV         11      /* Segmentation violation (ANSI).  */
+#define SIGSYS          12      /* Bad argument to system call*/
+#define SIGPIPE         13      /* Broken pipe (POSIX).  */
+#define SIGALRM         14      /* Alarm clock (POSIX).  */
+#define SIGTERM         15      /* Termination (ANSI).  */
+#define SIGUSR1         16      /* User-defined signal 1 (POSIX).  */
+#define SIGUSR2         17      /* User-defined signal 2 (POSIX).  */
+#define SIGCHLD         18      /* Child status has changed (POSIX).  */
+#define SIGCLD          SIGCHLD /* Same as SIGCHLD (System V).  */
+#define SIGPWR          19      /* Power going down.  */
+#define SIGWINCH        20      /* Window size change.  */
+#define SIGURG          21      /* Urgent condition on socket.*/
+#define SIGIO           SIGPOLL /* I/O now possible.  */
+#define SIGPOLL         22      /* Same as SIGIO? (SVID).  */
+#define SIGSTOP         23      /* Stop, unblockable (POSIX).  */
+#define SIGTSTP         24      /* Keyboard stop (POSIX).  */
+#define SIGCONT         25      /* Continue (POSIX).  */
+#define SIGTTIN         26      /* Background read from tty (POSIX).  */
+#define SIGTTOU         27      /* Background write to tty (POSIX).  */
+#define SIGVTALRM       28      /* Virtual alarm clock.  */
+#define SIGPROF         29      /* Profiling alarm clock.  */
+#define SIGXCPU         30      /* CPU limit exceeded.  */
+#define SIGXFSZ         31      /* File size limit exceeded.  */
+@end example
+
+Note that some of them are only defined for compatibility with other
+UNIX systems, but not currently used.  The current kernel implementation
+doesn't dumps the process's core when receiving signals that would
+normally do so.  Also the kernel currently lacks debugging or profiling
+features.
+
+
+@node Timers, System Calls, Signals, Kernel
+@section Kernel Timers
+
+
+The system clock runs at 100 Hz.  So a 100 times per second the hardware
+delivers an interrupt and the @samp{timer}() function gets called.
+Unfortunately, lots of things have to be done here.
+
+First of all, the kernel should keep track of time.  Then, it should
+compute statistics like the time spent in user mode or kernel mode,
+depending on which level the current process was running at the time the
+interrupt occured.  It should also check if a real, virtual or profiling
+interval timer has expired.  If it did, the kernel delivers a signal to
+the process that scheduled that interval timer.  Fortunately, interval
+timers have been implemented as linked lists of sorted interval timers,
+so that the next to expire timer is always in the head of its list.  The
+kernel tries this way to spend as little time as possible in the
+interrupt routine.
+
+Many device drivers like the floppy or hard disk driver need a way to
+keep track of time in order to be able to detect timeouts.  So each such
+driver registers a timer when the system starts up and that timer gets
+called at every timer interrupt.  The floppy disk driver uses this timer
+to detect timeouts and to stop the floppy motor after a few seconds if
+no floppy request occured.  The hard disk driver uses the timer only to
+detect timeouts.
+
+The timer mechanism would probably be enhanced to handle some sort of
+interval timers as well because it might be a good idea to use them
+instead of calling the driver timer at every hardware interrupt, just to
+check for timeouts.  A much better example is the virtual terminals
+driver that might want to implement a screen saver.  Using a normal
+system timer for this purpose would be inappropriate.
+
+
+@node System Calls, Interrupts and Exceptions, Timers, Kernel
+@section System Calls
+
+System calls are implemented as a software interrupt (int 0x30).  The
+parameters are passed on the stack and the system call number in the
+%eax register.  The system detects invalid system calls and performs
+parameter checking.  There is no way a process can damage the kernel by
+passing an invalid parameter or pointer to a system call.
+
+Passing an invalid pointer to a system call is really dangerous because
+running in kernel mode means we have access to the entire virtual
+address space (including the kernel text and data area), so writing to a
+pointer without checking it first might corrupt kernel memory. Not
+checking the file descriptors passed as parameters to the write() system
+call for example, might lead to an attempt to write to an invalid
+address which can be fatal.
+
+System calls are closely related to the C library.  After entering the
+kernel using an @samp{int 0x30} instruction, the kernel checks the
+system call number and, if everything is ok, sets up the segment
+registers (%ds and %es should point to the kernel data segment) and then
+invoke the corresponding kernel function.
+
+At the end of the system call, the kernel checks for signals,
+reschedules if another process with a higher priority waked up or simply
+resumes the current process user mode execution.
+
+The result of the system call is returned in the %eax register, a
+negative value indicating an error.  In this case the C library sets the
+global errno variable to that value and return -1.  The only system call
+that doesn't obey this rule is @samp{getpriority}() because -10, for
+example, is a perfectly valid priority number (@xref{Scheduling}).
+Therefore the C library treats this system call in a different way.
+
+Here it is an example of a normal system call.  First, I will describe
+the C library system call interface.  Then I will present the kernel
+system call handling.  Note that the system call invocation stub is a
+macro that is expanded inline by the C library.
+
+
+The C library stub:
+
+@example
+.text
+.globl syscall_error
+
+
+        .......
+
+        movl $SYS_##syscall_name, %eax  /* Store in %eax the system
+                                           call number.  */
+        int $0x30                       /* Kernel trap.  */
+        test %eax, %eax
+        jl syscall_error
+
+        .......
+
+
+syscall_error:
+        negl %eax               /* Make it positive.  */
+        movl %eax, _errno       /* Store it in `errno'.  */
+        movl $-1, %eax          /* Return -1.  */
+        ret
+@end example
+
+
+The kernel:
+
+@example
+        .......                 # Code to check the system call number
+                                # and set up registers
+
+        jmp    %eax             # Call the appropriate routine
+
+        ......                  # Resume the system call.  Check for
+                                # signals, etc
+
+.align  4
+__sys_fcntl:
+        pushl   12(%esi)
+        pushl   8(%esi)
+        pushl   4(%esi)
+        movw    %bx, %ds
+        call    _sys_fcntl      # Call the kernel C function
+        addl    $0xc, %esp
+        ret
+@end example
+
+
+
+
+Currently, the Thix kernel implements the following system calls:
+
+@example
+fork            exec            ustat           utime           getpid
+brk             getppid         exit            umask           fcntl
+kill            pause           uname           stime           time
+sync            chmod           open            close           link
+unlink          mkdir           chdir           readdir         rmdir
+reboot          lseek           read            write           dup
+stat            fstat           dup2            mknod           pipe
+setuid          setgid          getuid          geteuid         getgid
+getegid         sigpending      sigprocmask     sigsuspend      sigaction
+chown           access          ioctl           tcsendbreak     tcdrain
+tcflush         tcflow          tcgetattr       tcsetattr       getitimer
+setitimer       getrlimit       setrlimit       getrusage       getpriority
+setpriority     mount           umount          waitpid         setsid
+setpgid         getpgrp         swapon          swapoff         readlink
+truncate        lstat           symlink         sethostname     setdomainname
+ftruncate       fchown          fchmod
+@end example
+
+Some of them are not yet finished, though.  The kernel also provides two
+additional system calls (getprocinfo and getsysinfo) for retrieving
+process and system information.  Using system calls instead of reading
+from /dev/kmem in order to get the information is much cleaner.  When
+the kernel will have virtual file system support, a /proc file system
+will obsolete these two system calls, but right now this is the way to
+do it.
+
+
+@node Interrupts and Exceptions, I/O, System Calls, Kernel
+@section Interrupts and Exceptions
+
+
+The hardware usually generates lots of different kinds of interrupts and
+exceptions.  Most of them are related to I/O completion, hardware
+synchronization, protection violations, page faults, timers or unusual
+events.  The kernel should handle all of them, just to be sure that it
+will be able to catch and process everything.
+
+The Thix kernel keeps track of all the known 386/486 interrupts and
+exceptions, calling the appropriate handler.  All the processes share
+the same interrupt table (which contains entry points for hardware
+interrupts and software exceptions plus the system calls entry point)
+and any attempt to use an invalid interrupt number (e.g. by generating
+software interrupts) will be detected and the appropriate signal
+delivered to the offending process.
+
+At the end of an interrupt or exception, a transition from kernel mode
+to user mode will occur.  The kernel will first check if a process with
+a higher priority level waked up as a result of running the interrupt
+handler.  This is done because usually the I/O completion interrupt
+handler is run on behalf of a random process (the process that was
+currently running when the interrupt occured), but the I/O operation was
+requested by another process.  Part of the job of the interrupt handler
+is to wake up that process, notifying it this way that the I/O operation
+has been completed.
+
+Let's think a little what could have happened if at the end of the
+interrupt handler the kernel simply continued to run the same process,
+without checking for higher priority ones.  Suppose the kernel runs two
+processes: process A and process B.  Process A wants to perform an I/O
+operation (to read some disk blocks).  It normally calls the disk device
+driver for that, sends the appropriate request to the disk controller
+and goes to sleep waiting for I/O completion The scheduler chooses to
+run process B and the I/O interrupt occurs while process B is still
+running.  The kernel calls the disk interrupt handler (on behalf of
+process B) and when the interrupt handler returns, process B resumes
+execution.  Process A will be scheduled to run when process B eats up
+its time quanta.  Then process A will resume its execution in the disk
+device driver and eventually perform another disk I/O operation.  The
+problem here is that the disk performance will be very poor due to these
+artificial delays between consecutive I/O requests.  Suppose process B
+is the idle process.  Both CPU and the I/O controller will simply waste
+their time.  If process A is scheduled to run as soon as the interrupt
+occurs, it will perform another I/O request and go back to sleep using
+the CPU only for a very short period of time.  Then process B will be
+scheduled again and use the CPU while the disk controller is doing is
+job.
+
+Here it is an example of how interrupts are handled inside the kernel.
+Before calling the C interrupt handler, the register segments are set
+and the current interrupt level masked.
+
+@example
+.align  4
+int26:                                          # IRQ 6 -> the floppy disk
+                pushl   %ebp
+                movl    %esp, %ebp
+                pushal
+                pushl   %ds
+                pushl   %es
+
+                movw    $0x10, %ax
+                movw    %ax, %ds
+                movw    %ax, %es
+
+                movb    $(1 << 6), %bl          # 6 is the irq no.
+                call    mask_i8259A_irq         # mask the current irq level
+
+                call    _fdc_interrupt          # call the appropriate
+                                                # interrupt handler
+
+                movb    $~(1 << 6), %bl         # 6 is the irq no.
+                call    unmask_i8259A_irq       # unmask the current irq level
+
+                cmpl    $0, _sched_touched      # if a process with a higher
+                jne     do_sched                # priority waked up,
+                                                # reschedule
+
+                jmp     end_IRQ                 # check for signals,
+                                                # restore registers and iret
+@end example
+
+
+@node I/O, , Interrupts and Exceptions, Kernel
+@section Low Level I/O
+
+Low level I/O is performed through a set of inline functions that
+contain i386 input output instructions or sets of such instructions when
+I/O delays are required:
+
+@example
+static inline void outb(unsigned short __port, unsigned char __value)
+@{
+    __asm__ __volatile__("outb %0,%1"           :
+                         /* no output */        :
+                         "a" (__value),
+                         "d" (__port)           :
+                         "eax","edx");
+@}
+
+static inline void outb_delay(unsigned short __port, unsigned char __value)
+@{
+    __asm__ __volatile__("outb %0,%1
+                          outb %%al,$0xE0"      :
+                         /* no output */        :
+                         "a" (__value),
+                         "d" (__port)           :
+                         "eax","edx");
+@}
+@end example
+
+Due to the fact that I/O devices are usually slow, delays might be
+required between I/O operations.  In most cases two jump instruction
+
+@example
+        ...             /* I/O instruction.  */
+        jmp $+2
+        jmp $+2
+        ...             /* I/O instruction.  */
+@end example
+
+@noindent
+are enough to synchronize with I/O devices.  The jump instructions are
+slowing down the processor by resetting its instruction queue, but the
+AT BIOS uses dummy out instructions to the unused 0xE0 port for this
+purpose because it gives better timings on fast machines.  This is how
+Thix implements short delays for I/O synchronization in all the _delay
+functions.
+
+
+@node Virtual Memory, File System, Kernel, top
+@chapter Virtual Memory Management
+
+
+@menu
+* VM Mapping::                  The VM mapping
+* Demand Paging::               The demand paging implementation
+* Fork::                        The fork() system call
+* Exec::                        The exec() system call
+* Page Cache::                  The cache of physical pages
+* Shared Pages::                Shared pages
+* VM Device Numbers::           The VM specific device numbers
+* Swapper::                     The swapper process
+* Sub-allocation::              The memory sub-allocator
+* Checking User Params::        How user supplied Params are checked
+@end menu
+
+
+@node VM Mapping, Demand Paging, , Virtual Memory
+@section Mapping Virtual Memory into Physical Memory
+
+Starting with the Intel 80386 DX (TM) processor, all the x86 processors
+support virtual memory.  As a brief description I can say that each
+process can have its own virtual address space, making any memory
+conflict with other running processes impossible and that each such
+virtual address space is build using a small tree consisting of one page
+directory with up to 1024 page tables entries, each entry pointing to a
+page table with up to 1024 entries for physical pages.  Since each
+physical page is 4 Kb, a process can use up to 4 Gb of virtual memory.
+
+In order to make things easier for the kernel and to prevent useless
+page mappings (implying processor cache resets), the kernel maps the
+beginning of the virtual address space into the physical address space.
+That is, the first virtual memory pages map into physical pages.  This
+way, each time the kernel needs access to a physical page, it just
+perform that access, because that physical page can be found at the same
+address into the virtual address space.
+
+Intel x86 processors also provide a segmentation mechanism.  The kernel
+uses it to hide its text, data and stack from the user level processes.
+The kernel starts at address 0 and reserves an amount of virtual memory
+equal with the amount of physical memory the computer has plus 4 Mb.
+While running in kernel mode, a process can access any virtual memory
+location (faulting if necessary), while processes running user level
+code use a different text/data/stack segment that starts after the
+kernel reserved space.
+
+
+@node Demand Paging, Fork, VM Mapping, Virtual Memory
+@section The Demand Paging Implementation
+
+Programs become bigger and bigger every day.  If a computer has 4 Mb of
+RAM and some user starts a C compiler (which is normally about 1.3 Mb in
+size) and another one starts the Emacs editor/environment (which has
+about the same size), the system memory will be filled up.  A smarter
+algorithm that the one that simply loads the whole binary into memory is
+required.
+
+Two techniques are used in order to decrease as much as possible the
+amount of memory a program uses at a given moment.  The first one is
+called 'demand paging' and basically says that the operating system
+should catch page faults and load a page from a binary only when the
+process actually needs it (a page fault occur for a given address).  The
+second technique is called 'swapping' and will be described later, when
+I will present the 'Swapper' implementation.
+
+Every time a page fault occur, the i386_page_fault() routine gets
+called.  Depending on the nature of the page fault, this function calls
+in turn the @samp{page not present} or the @samp{page protection} fault
+handler.  A simplified description of the @samp{page not present} fault
+handler will give a better idea about how @samp{demand paging} works.
+
+@example
+void i386_page_not_present_fault(VMADDR address)
+@{
+    int kpid;
+    int page;
+    PGDATA *pgd;
+    unsigned pgtbl_addr;
+    PGTBL *pgtbl, **pgdir;
+    int vmdev, block, type;
+    unsigned new_page, new_page_addr;
+
+
+    pgdir = this->PGDIR + address.pgdir_index;
+
+    if (((PGTBL *)pgdir)->present)
+    @{
+        /* The page is missing.  */
+
+        pgtbl_addr = (unsigned)*pgdir & 0xFFFFF000;
+
+      restart:
+        pgtbl = (PGTBL *)pgtbl_addr + address.pgtbl_index;
+
+        /* Find out the page type and location (if any).  */
+        vmdev = ((extPGTBL *)pgtbl)->vmdev;
+        block = ((extPGTBL *)pgtbl)->block;
+        type  = ((extPGTBL *)pgtbl)->type;
+
+        if (block)
+            for(;;)
+                if ((page = pg_hash_search(vmdev, block)))
+                @{
+                    /* A page with the given vmdev/block numbers has been
+                       found in the hash table.  If no other  process  is
+                       using it, we have to get it  back  from  the  free
+                       pool.  */
+                    pgd = &pgdata[page];
+
+                    if (pgd->lnext != 0xFFFF)
+                        reuse_page(pgd - pgdata);
+
+                    pgd->count++;
+
+                    if (type == PAGE_SWAP)
+                        release_swap_block(vmdev_aux(vmdev), block);
+
+                    /* Mark the page read-only. We might want to share it. */
+                    *(unsigned *)pgtbl = ((pgd - pgdata) << PAGE_SHIFT) |
+                                         PAGE_URP;
+
+                    return;
+                @}
+                else
+                    if ((kpid = block_is_loading(vmdev, block)))
+                    @{
+                        sleep(&busy_blocks[kpid], WAIT_PAGE);
+                        /* There is a possibility that the page was swapped
+                           in by some other process but the swapper swapped
+                           it out *before* we had a chance to wake up.
+                           Restart the fault handler from the  point  where
+                           it checks out the page table entry. */
+                        goto restart;
+                    @}
+                    else
+                    @{
+                        /* Notify other instances of the same process that
+                           we are going to load this block.  */
+                        busy_blocks[current_kpid].vmdev = vmdev;
+                        busy_blocks[current_kpid].block = block;
+                        break;
+                    @}
+
+        pgtbl->busy = 1;
+        reserve_pages(1);
+
+        /* Get a new page from the free pool.  */
+        new_page_addr = (new_page = get_page()) << PAGE_SHIFT;
+        *(unsigned *)pgtbl = new_page_addr | PAGE_URP;
+        pgtbl->busy = 1;
+
+        /* Initialize the PGDATA structure.  */
+        pgd = &pgdata[new_page];
+        pgd->vmdev = vmdev;
+        pgd->block = block;
+        pgd->type  = type;
+
+        switch (type)
+        @{
+            case PAGE_DZ:
+                lmemset((void *)new_page_addr, 0, PAGE_SIZE >> 2);
+                break;
+
+            case PAGE_FILE:
+                /* Load the page from the binary image.  */
+                a_out_read(this->a_out_inode, (char *)new_page_addr,
+                           A_OUT_HEADER +
+                           ((*(unsigned *)&address - KERNEL_RESERVED_SPACE) &
+                           ~(PAGE_SIZE - 1)),
+                           PAGE_SIZE);
+                goto common;
+
+            case PAGE_SWAP:
+                /* Load the page from disk.  */
+                load_page(pgd);
+
+              common:
+                /* Insert the page into the hash table.  */
+                pg_hash_insert(new_page);
+
+                /* If the page have a swap block, release it, we no longer
+                   need it.  */
+                if (type == PAGE_SWAP)
+                    release_swap_block(vmdev_aux(vmdev), block);
+
+                /* Wake up all the processes waiting for this block to be
+                   loaded.  */
+                busy_blocks[current_kpid].vmdev = 0;
+                busy_blocks[current_kpid].block = 0;
+                wakeup(&busy_blocks[current_kpid]);
+                break;
+
+            default:
+                PANIC("invalid extended page table entry %x !", type);
+                break;
+        @}
+
+        pgtbl->rw   = 0;
+        pgtbl->busy = 0;
+    @}
+    else
+    @{
+        /* The page table is missing.  Allocate & initialize one.  */
+
+        reserve_pages(1);
+        new_page_addr = get_page() << PAGE_SHIFT;
+        *(unsigned *)pgdir = new_page_addr | PAGE_UWP;
+        lmemset((void *)new_page_addr, 0, PAGE_SIZE >> 2);
+    @}
+@}
+@end example
+
+
+Implementing 'demand paging' in a kernel not only improves the global
+performance of the operating system, but also simplifies its code.  The
+fork() and exec() system calls (described in the next sections) are a
+lot faster than in a kernel without 'demand paging' because it is no
+longer necessary to copy the parent's address space (@xref{Fork}) or to
+load the new image from the executable (@xref{Exec}).
+
+The amount of memory a process uses is dynamically configured and if the
+system load average is high, the system will keep into the main memory
+only those pages that are currently in use.  @xref{Swapper} for how
+unused memory pages are removed from memory.
+
+
+@node Fork, Exec, Demand Paging, Virtual Memory
+@section The fork() system call
+
+
+The fork() routine is very simple and fast, because we don't have to
+copy the parent's address space into the child's one.  The kernel first
+write-protects all the parent's virtual memory pages and then copy the
+parent's page tables into the child's ones.  It also copies the parent's
+u_area[] structure into the child's u_area[], only modifying those
+fields that are different.  It also increments the page counters for
+those virtual pages that are currently located in memory or the swap
+block counters for those virtual pages that are located on a swap
+device.
+
+Here it is the main loop of the fork() system call that clones the
+parent address space, only by setting up the page tables and the swap
+blocks counters.  The real routine is a little bit complicated, it
+copies the parent's u_area[] structure into the child's one,
+initializing many fields, but this is not relevant here.  I've included
+the listing here just to point out the simplicity of the fork() system
+call in a system that implements 'demand paging'.  For the sake of
+brevity and readability all the optimizations have been removed.
+
+@example
+extern PGDATA *pgdata;          /* One entry for each physical page.  */
+
+int sys_fork(void)
+@{
+    .....
+
+    /* Loop through the parent page tables in order to  initialize  the
+       corresponding child data structures.  This is the child VM setup
+       code.  */
+
+    for (page_table = KERNEL_PAGE_TABLES + 1;
+         page_table < 1024;
+         page_table++)
+    @{
+        if (pgdir[page_table] == 0)
+            continue;
+
+        pgtbl_addr = get_page() << PAGE_SHIFT;
+        cpgdir[page_table] = (PGTBL *)(pgtbl_addr | PAGE_UWP);
+        pgtbl = (PGTBL *)((unsigned)pgdir[page_table] & ~0xFFF);
+        extpgtbl = (extPGTBL *)pgtbl;
+
+        for (page = 0; page < 1024; page++)
+            if (pgtbl[page].present)
+            @{
+               pgtbl[page].rw = 0;
+               pgdata[pgtbl[page].high_address].count++;
+            @}
+            else
+            @{
+               if (extpgtbl[page].type == PAGE_SWAP && extpgtbl[page].block)
+                  sdt[vmdev_aux(extpgtbl[page].vmdev)].
+                      bitmap[extpgtbl[page].block]++;
+            @}
+
+        /* Clone the parent page table.  */
+        memcpy((void *)pgtbl_addr, pgtbl, PAGE_SIZE);
+    @}
+
+    .....
+@}
+@end example
+
+@xref{Page Cache} for a detailed description of the PGDATA structure.
+
+@node Exec, Page Cache, Fork, Virtual Memory
+@section The exec() system call
+
+
+The exec() routine is also very simple because its only job (as far as
+the virtual memory management is concerned) is to allocate a page
+directory and a number of page tables for the new process image, filling
+their entries with the appropriate information.  That means that all the
+pages corresponding to the binary text, data and bss sections should be
+initialized to point to the corresponding file system blocks or marked
+as 'demand zero' (for bss pages only).
+
+Each time the process will try to access a text, data or bss page, the
+kernel will have all the necessary information for loading the page (or
+simply allocate a new one for bss pages).  It will do so and then resume
+the process execution.  Since all instructions causing page faults
+(instructions performing memory access) are restartable, the process
+will try to access the missing virtual address again and successfully
+continue its execution.
+
+
+
+@node Page Cache, Shared Pages, Exec, Virtual Memory
+@section The Page Cache
+
+
+The kernel keeps track of physical memory pages using a double linked
+list.  For each physical page, it keeps a PGDATA structure containing
+the page type, the current location information, the count of processes
+using the page, the 'dedicated' flag, etc.
+
+@example
+typedef struct
+@{
+    unsigned reserved : 1,
+             type     : 2,
+             vmdev    : 5,
+             block    : 24;
+
+    unsigned char busy;
+    unsigned char dedicated;
+    unsigned char count;
+
+    union
+    @{
+        unsigned age;   /* Used when the page is part of the address
+                           space to keep track of its age.  */
+        unsigned map;   /* Used for dynamic data allocation.  */
+    @} aux;
+
+    unsigned short hprev;
+    unsigned short hnext;
+    unsigned short lprev;
+    unsigned short lnext;
+@} PGDATA;
+@end example
+
+If a virtual page has no copy into the physical memory (it can be loaded
+from a file system block, from a swap device or simply filled with zeros
+if it is a bss page), the information about that page is kept into the
+page table entry.  If a virtual page has a copy into the main memory,
+but it also has a copy on a swap device (as a result of being swapped at
+an earlier moment) the kernel keeps into the PGDATA structure
+information about its location (the swap device and the block number)
+because that page might become old and there is no point in writing it
+again on the swap device if it is already there.
+
+Every time a page fault occurs, the kernel detects the location (device
+and block) of the missing page from the page table entry and starts
+searching for that page.  Searching through all the PGDATA structures
+for a page with the same device/block numbers is a very slow process,
+especially on systems with a lot of memory, so the kernel inserts pages
+that have copies on the swap device or on the file system in a hash
+table, using a hash function based on the device and block numbers.  If
+a page is found, the kernel first checks if other processes are sharing
+it (@xref{Shared Pages}) because if there is no other process using it,
+the page should be also removed from the page free list in order to
+prevent reallocation.  Otherwise, the page count is incremented and the
+page table entry set.
+
+There are a few problems related to the interaction between the page
+cache and the file system buffer cache.  Since both caching mechanisms
+are trying to cache binaries (the page cache by preserving the
+connection between the physical page and the file system or swap device
+block even after the program exits and the file system buffer cache by
+simply keeping into memory the most frequently used file system blocks),
+the kernel have to face some strange situations.
+
+When a page is inserted into the free list, the connection between it
+and its swap block or file system block (if any) is not broken, with the
+idea of being able to find the page very quickly if it is requested
+again before being reallocated.  If the kernel breaks that connection
+(that is, deleting the page from the hash table and reseting the 'vmdev'
+and 'block' fields in its PGDATA structure) and a process needs the
+page, it will try to find it using its 'vmdev' and 'block' without
+success even though the page might still contain the information in that
+swap or file system block.  There is another situation when the page -
+swap/fs block connection might be useful.  Suppose a program exits and
+then it is started again.  If the amount of time elapsed is short or
+those pages were not required by some other program, we will be able to
+find them into the free list and never need to actually load them from
+the disk, not even searching them into the buffer cache.
+
+However, this leads to a strange situation.  Suppose we start a program
+called 'A'.  It loads its pages as needed, using the demand paging
+mechanism provided by the kernel, runs and then exits.  Its pages are
+now in both the page and the buffer cache ('A''s pages can appear into
+the page free list even while 'A' is still running, as a result of a
+data or stack segment shrink or swapper actions).  If someone modifies
+the executable binary image (e.g. as a result of compiling a new 'A'
+version), there is a possibility for the new binary image to use some or
+all the file system blocks used by the previous version.  If 'A' is
+restarted, the kernel will find pages with the same 'vmdev' and 'block'
+numbers in the page free list (the cache) and load them, which is
+definitely wrong because these pages actually belong to the old binary.
+In order to get around the problem, the kernel resets the page cache
+each time a binary with a create time newer than the last time the page
+cache was cleared is started.  Since we can't trust the inode's 'mtime'
+field (users can modify it by means of the 'utimes' system call) I have
+added a new inode field, 'ktime', used to keep track of the file create
+time.  Maybe a better solution would be to simply reset the page cache
+each time a new binary is started, because the 'ktime' trick will only
+work with TFS file systems.
+
+Basically the page cache implementation consists of a few routines that
+maintain the double linked list of free pages and the page cache.  These
+routines are pg_list_insert() and pg_list_delete() for the linked list
+and pg_hash_insert(), pg_hash_delete() and pg_hash_search() for the hash
+table.
+
+
+@node Shared Pages, VM Device Numbers, Page Cache, Virtual Memory
+@section Shared Pages Implementation
+
+
+Shared pages are yet another way to decrease the amount of memory used
+by programs.  Since there is no point in having multiple pages
+containing the same thing, the kernel tries to use a page for as much
+processes as possible.
+
+The page cache does the first step in this direction by searching pages
+into the hash table using the device and block numbers.  If another
+instance of the executable is currently running, there is a big chance
+to find the missing page into the hash table.  The page returned by the
+hash table search is exactly the same page as that used by the other
+instance, so it will be shared now by both instances.  This is how text
+pages are shared.
+
+Sometime the same policy can be used to share data pages as well.  A
+data page can be shared as long as the programs sharing it don't try to
+modify its contents.  When a process tries to write something into a
+shared page, a page protection fault occurs and the kernel creates a
+separate copy of the page for that process, resetting the 'write
+protect' flag in the page table entry.  The other processes will
+continue to share the old, unmodified page.  If there are no other
+processes sharing that page, the kernel breaks the connection between
+the page and the file system or swap device block (if any) since the
+page will be modified exactly after the page protection fault handler
+will return, then removes the page from the hash table and marks it as
+read/write in the page table entry.
+
+Here it is the simplified version of the @samp{page protection} fault
+routine.
+
+
+@example
+void i386_page_protection_fault(VMADDR address)
+@{
+    PGDATA *pgd;
+    PGTBL *pgtbl, **pgdir;
+    unsigned new_page, old_page_addr, new_page_addr;
+
+    if (*(unsigned *)&address - KERNEL_RESERVED_SPACE <
+        (this->text_pages << PAGE_SHIFT))
+    @{
+        kill_kpid(current_kpid, SIGSEGV);
+        return;
+    @}
+    else
+    @{
+        pgdir = this->PGDIR + address.pgdir_index;
+        pgtbl = (PGTBL *)((unsigned)*pgdir & 0xFFFFF000) +
+                address.pgtbl_index;
+        pgd   = &pgdata[pgtbl->high_address];
+
+        if (pgd->count == 1)
+        @{
+          not_shared:
+            pgtbl->rw = 1;
+
+            if (pgd->block)
+            @{
+                pg_hash_delete(pgd - pgdata);
+                pgd->block = 0;
+            @}
+
+            pgd->type = PAGE_SWAP;
+            return;
+        @}
+
+        pgtbl->busy = 1;
+        reserve_pages(1);
+
+        if (pgd->count == 1)
+        @{
+            pgtbl->busy = 0;
+            goto not_shared;
+        @}
+
+        pgd->count--;
+        old_page_addr = (pgd - pgdata) << PAGE_SHIFT;
+
+        new_page_addr = (new_page = get_page()) << PAGE_SHIFT;
+        *(unsigned *)pgtbl = new_page_addr | PAGE_UWP;
+
+        pgdata[new_page].type  = PAGE_SWAP;
+        pgdata[new_page].block = 0;
+
+        memcpy((void *)new_page_addr, (void *)old_page_addr, PAGE_SIZE);
+    @}
+@}
+@end example
+
+Unfortunately the 80386 DX (TM) processors have a design mistake that
+makes the implementation of the described algorithm much more difficult
+than it should be.  I'll describe the problem briefly.
+
+In order to implement protection, Intel 80x86 processors provide four
+different protection levels at which programs can run.  Level 0 is
+the most privileged level and it is used to run the kernel.  The less
+privileged protection level is level 3 and it is used to run user
+programs.
+
+On a well designed hardware, every attempt to write to a read-only page
+should result in a page fault (the error code passed to the page fault
+handler specifies the reason of the page fault, be it due to a missing
+page or to a protection violation).  Unfortunately, this doesn't happen
+on a 80386 processor when running on protection levels 0, 1 and 2.  It
+only happens on user level, but this is not enough.  Suppose a program
+makes a read() system call in order to read something from a file.  If
+the page corresponding to the buffer passed as an argument to that
+read() system call is shared with some other process (as a result of a
+previous fork() system call) the page is of course read-only in order to
+detect every attempt to modify it, as explained before.  When the kernel
+will try to write the requested data to that buffer, a page protection
+fault should occur, notifying the kernel that the page is read-only
+(shared) and should be duplicated before being modified.
+
+Well, that page protection fault doesn't occur on 80386 based systems.
+So the kernel will actually write the data to that page without
+detecting that the page is read-only.  This problem has been fixed in
+the Intel 80486 processor, but the kernel is supposed to work on 80386s
+too, so a few additional checks have been added to it in order to get
+around the problem.
+
+We can distinguish here two situations.  When the page is missing, a
+page not present fault will occur first, the kernel will load the page
+(eventually by sharing it with another instance of the same process),
+mark it as read-only and then retrying the write operation.  Normally, a
+second page fault (a protection fault) should occur.  But it doesn't.
+The kernel can fix the problem by setting a flag into the u_area
+structure of the current process at the beginning of every system call
+that is supposed to write to user memory (read(), stat(), fstat(),
+waitpid(), sigpending(), etc.) and reset that flag at the end of the
+system call.  If a page not present fault will occur while the current
+process runs in kernel mode, the fact that that flag (kwreq) is set will
+determine the page not present fault handler to call "by hand" the page
+protection handler (since that fault will normally be generated at the
+end of the first one) and duplicate the page or mark it as not shared.
+
+In the second case, things are a little bit difficult.  That is because
+the page is read-only but present, so the kernel is not notified by the
+combination kwreq flag set/page not present fault that something wrong
+is going to happen.  Fixing this is a more difficult than in the first
+case, since the kernel has to look into the page tables and call "by
+hand" the page protection fault handler for each read-only page that the
+buffer is part of.  Of course, this is done only on system calls that
+are supposed to write to kernel memory and only if the kernel is
+compiled for 80386 machines.  As explained, 80486 doesn't need all these
+ugly hacks.
+
+
+@node VM Device Numbers, Swapper, Shared Pages, Virtual Memory
+@section Virtual Memory Device Numbers
+
+The kernel uses 16-bit device numbers: 8 bits for the major number and 8
+bits for the minor number.  Unfortunately the number of bits available
+in the page table entries is limited (5).  In order to fix the problem
+the kernel dynamically allocates a smaller device number (vmdev) just
+for the use of the memory management routines each time a mount() or
+swapon() operation is performed.  Virtual memory routines will use this
+number when swapping pages of memory.  Before doing the I/O operation,
+the vmdev number is converted back to the real device number.  When the
+device is no longer used (as a result of an umount() or swapoff() system
+call), the vmdev number is released and can be reused.  This way we are
+limited to 2^5 = 32 mounted + swap devices at the same time.
+
+
+@node Swapper, Sub-allocation, VM Device Numbers, Virtual Memory
+@section The Swapper Process
+
+The swapper is the only real kernel process, i.e. the only process that
+runs in kernel mode all the time, doing useful work.  Of course, there
+is also an idle process, but that process is run only when there is no
+other ready to run process.
+
+If there is enough free memory in the system, the swapper is normally
+asleep.  Whenever the amount of free pages decrease under
+LOW_PAGES_LIMIT (0x20) the swapper is waked up and starts looking for
+pages old enough to be swapped out.  When enough pages have been swapped
+out (or simply the amount of free pages increased beyond
+HIGH_PAGES_LIMIT (0x40)), the swapper goes back to sleep.
+
+Let's now go into details.  First of all, why do we need two limits
+(LOW_PAGES_LIMIT and HIGH_PAGES_LIMIT) ?  Suppose we had only one limit
+(say, PAGES_LIMIT).  The first time the number of free pages in the
+system decrease under this limit, the swapper is waked up and starts
+swapping pages out.  Once it had swapped a page out, it goes back to
+sleep because now the number of free pages in the system is PAGES_LIMIT.
+If a process immediately requests a new page, the number of free pages
+in the system will decrease again under PAGES_LIMIT, the swapper will be
+waked up, and so on.  The idea behind having two different limits
+instead of only one is to avoid the overhead of starting and stopping
+the swapper all the time.  Moreover, if the system is short on pages, it
+will be a good idea to free up a bigger number of pages so that the
+moment when the system will be short on pages again to be delayed as
+much as possible.
+
+How the swapper works ?  The swapper is a kernel process, therefore it
+has access to all the kernel data structures, including the page
+directories and the page tables.
+
+First, the swapper tries to get some free pages by shrinking the buffer
+cache.  Then it starts looking into the kernel process table for a
+process whose pages can be swapped out.  Some processes, as zombies or
+processes currently executing critical kernel code (e.g. fork()) cannot
+be swapped.  Once a process has been selected, the swapper starts
+searching for in use page tables.  Of course, it skips the page tables
+pointing to the kernel, since the virtual memory area used by the kernel
+is shared by all the processes in the kernel and it is not subject of
+swapping.
+
+When the swapper finds an in use page table, it parses it searching for
+in use pages.  If such a page is found and the accessed bit is set
+(meaning that the page has been accessed recently), the swapper simply
+resets it and continues its search through the page table.
+
+If the access bit is not set, that means the page is old, but the
+swapper doesn't swap it out unless its age (kept in the pgdata[]
+structure) is MAX_PAGE_AGE (7).  This strategy is more flexible than
+using only the access bit provided by the hardware, since the fact that
+the page has not been accessed since the swapper has last time checked
+it doesn't necessary mean that the page is old.  Maybe the process has a
+low priority level and it never had a chance to run and access it.  Or
+maybe the process accessed it a few seconds ago and will try to access
+it soon, so there is no real reason for swapping the page out.  If the
+page is being unused for a long period of time, then at each iteration
+the swapper will increase its age and when the maximum is reached, the
+page is swapped out.
+
+If the page is old enough, the swapper will assume it is not currently
+needed and try to get rid of it.  There are 3 types of such pages.
+Let's discuss each one of them in turn.
+
+First there are pages that belong to the process's bss (the
+uninitialized data segment) and have never been modified.  Suppose a
+process reads the contents of one of its uninitialized variables (which
+is allowed since under UNIX the kernel guarantees that the bss is filled
+with zeros before the program is started; in fact, this is only true
+from the process's point of view, the kernel actually fills a bss page
+with zeros only when the process tries to access it).  Reading the
+variable doesn't change the associated page's contents, so if the page
+is about to be swapped, the swapper simply discards it.
+
+Pages that have been loaded into memory but have never been modified,
+like pages belonging to the text segment or even to the data segment are
+treated in the same way.  These pages can be reloaded later from their
+corresponding binary images, so the swapper simply discards them
+(i.e. marks them as not present in the page table, storing in the page
+table the location where these pages can be found (VM device number +
+file offset).  Note that for these pages we cannot store the file system
+block number because it only gives information about the location of the
+first part of the page.  A page is build up from 4 blocks (1 block = 1
+Kb) and in order to figure out where the other file system blocks are,
+the kernel has to parse the file indirect blocks.  This is done through
+the a_out_read() function which is a simplified version of the read
+system call for regular files.
+
+Finally, there are pages that have been modified since the time they
+have been loaded into memory.  We can distinguish here two situations.
+The page about to be swapped can also be found on a swap device.  In
+this case, the swapper adjust the counter of the block on which that
+page is located and then discards the page.  If the page about to be
+swapped has no copy on a swap device, then it cannot be discarded (well,
+it would be fun to discard them all, but...). The swapper has to put it
+on a swap device.
+
+In order to do this, it has to look if there is any such device and if
+there is enough free space on it.  Easy task, since the kernel keeps a
+counter for the number of free swap blocks on each swap device and also
+a counter for the total amount of free swap blocks.  Simply checking if
+the later is not zero provides the required information.  If there is no
+free swap block, the swapper gives up, and the page about to be swapped
+remains in memory.  Unless a swap device is specified through the
+swapon() system call, that page will never be swapped.  If the swapper
+finds a free swap block, it writes the page on it, marks the page as not
+present and updates the page table entry to point to the specified VM
+device / swap block pair.
+
+And a final note on the swapper: since the swapper activates interrupts
+at each iterations, the process currently checked might die and the
+kernel id reused for another process.  This situation should be avoided
+and this is the reason why at each iteration the swapper checks that the
+process id hasn't changed.  If it did, the swapper gives up and starts
+swapping the next process.
+
+Here it is a simplified version of the swapper's main loop.  Many things
+are missing, because I've considered them irrelevant: optimizations,
+code to enable and disable interrupts, statistics, etc.  But it should
+still give a good idea of how the swapper works.  Keep in mind that
+interrupts are enabled/disabled all over the place and a swappable
+process might die and/or be replaced by a new process. Race conditions
+can be avoided by making sure at each loop that we are not mixing pages
+and page tables from different processes.
+
+@example
+for (kpid = INIT; kpid; kpid = NEXT(kpid))
+@{
+    pid = pid(kpid);
+
+    for (page_table = KERNEL_PAGE_TABLES; page_table < 1024; page_table++)
+    @{
+        /* Check if we are dealing with the same process and if it is
+           still swapable.  */
+
+        if (pid(kpid) != pid || !u_area[kpid].swapable)
+            break;
+
+        /* Is this page table in use ?  */
+        if (pgdir[page_table] == 0)
+            continue;
+
+        for (page = 0; page < 1024; page++)
+        @{
+            /* Check if we are dealing with the same process and if it is
+               still swapable.  */
+            if (pid(kpid) != pid || !u_area[kpid].swapable)
+                break;
+
+            /* If the current page is not present or busy, continue.  */
+            if (!pgtbl[page].present || pgtbl[page].busy)
+                continue;
+
+            /* Have we reached the upper threshold limit?  Stop swapping
+               if we did.  */
+            if (free_pages > HIGH_PAGES_LIMIT)
+                goto main_loop;
+
+            /* If the page has been accessed,  it means that it is
+               part of the current working set.  Don't swap it out!  */
+            if (pgtbl[page].accessed)
+            @{
+                pgtbl[page].accessed = 0;
+                pgdata[pgtbl[page].high_address].aux.age = 0;
+                continue;
+            @}
+
+            /* If the page is old enough, swap it out.  */
+            if (pgdata[pgtbl[page].high_address].aux.age == MAX_PAGE_AGE)
+            @{
+                /* Ok, we are going to swap this page out.  */
+                pgd = &pgdata[pgtbl[page].high_address];
+
+                switch (pgd->type)
+                @{
+                    case PAGE_DZ:
+                    case PAGE_FILE:
+
+                        /* Keep track of its location and its type.  */
+                        extpgtbl[page].vmdev = pgd->vmdev;
+                        extpgtbl[page].block = pgd->block;
+                        extpgtbl[page].type  = pgd->type;
+
+                        /* Mark it "not present".  */
+                        pgtbl[page].present = 0;
+
+                        /* Release the page.  */
+                        if (release_page(pgd - pgdata))
+                            wakeup(&get_page);
+
+                        break;
+
+                    case PAGE_SWAP:
+
+                        if (pgd->block)
+                        @{
+                            /* This page can already  be found  on a
+                               swap block, so we only have to adjust
+                               the counters.  */
+                            get_swap_block(vmdev_aux(pgd->vmdev),
+                                           pgd->block);
+
+                            /* Keep track of its location and its type.  */
+                            extpgtbl[page].vmdev = pgd->vmdev;
+                            extpgtbl[page].block = pgd->block;
+                            extpgtbl[page].type  = pgd->type;
+
+                            /* Mark it "not present".  */
+                            pgtbl[page].present = 0;
+
+                            if (release_page(pgd - pgdata))
+                                wakeup(&get_page);
+
+                            break;
+                        @}
+
+                        /* We need a swap block, but there is no free
+                           block on the swap devices.  Give up.  */
+                        if (total_free_swap_blocks == 0)
+                            continue;
+
+                        /* Initialize pgd with the vmdev/block numbers.  */
+                           swap_page(pgd);
+                        pg_hash_insert(pgd - pgdata);
+
+                        /* Mark the page "not present".  */
+                        pgtbl[page].present = 0;
+
+                        /* Keep track of its location and its type.  */
+                        extpgtbl[page].vmdev = pgd->vmdev;
+                        extpgtbl[page].block = pgd->block;
+                        extpgtbl[page].type  = PAGE_SWAP;
+
+                        /* Write the page to disk.  */
+                        save_page(pgd);
+                        break;
+
+                    default:
+
+                        PANIC("BAD PAGE TYPE ... ");
+                    @}
+                @}
+                else
+                    pgdata[pgtbl[page].high_address].aux.age++;
+            @}
+        @}
+    @}
+@}
+@end example
+
+@node Sub-allocation, Checking User Params, Swapper, Virtual Memory
+@section The Memory Sub-allocator
+
+There are several algorithms in the kernel that require dynamically
+allocated chunks of memory smaller than the page size (4096).  The usual
+example is the buffer cache mechanism that uses buffers of 512, 1024 or
+2048 bytes length.  The kernel provides a very fast method of doing
+malloc()/free() internally, using fixed size chunks.  The sub-allocator
+use a different linked list of pages for each possible chunk size.  It
+picks up pages from the free list, inserts them in the linked list
+corresponding to the required size and divides them as necessary.  When
+deallocating, if all the chunks in a page are free, the page goes back
+in the free pool.  As the kernel grows in size and complexity, this
+algorithm will probably have to be improved in order to handle
+dynamically allocation of smaller chunks of memory as well, optimizing
+the memory usage of kernel modules.
+
+
+@node Checking User Params, , Sub-allocation, Virtual Memory
+@section Checking User Supplied Parameters
+
+
+The kernel has to check all the parameters supplied by the user level
+programs to system calls.  This is done because this parameters can be
+set to illegal values and computing things into the kernel based on
+their values can lead to kernel malfunction.
+
+Each system call checks its own arguments, because these arguments are
+different for each one of them.  As an example, read() and write ()
+system calls check the validity of the file descriptor to be sure that
+it points to a valid opened file.  But a common thing among all the
+system calls is checking for pointers validity.  A few routines that are
+part of the memory management are called to do this.
+
+In the simplest case, the ok_to_read_area() and ok_to_write_area()
+routines are enough.  These routines receive as arguments a pointer and
+a size, checking if the memory area between pointer and pointer + size
+can really be accessed in the specified way (read/write).
+ok_to_write_area() also emulates page protection faults for read only
+pages in order to get around the well known i386 virtual memory flaw.
+
+Here it is an example of a system call that checks for parameters
+validity.
+
+@example
+int sys_sigprocmask(int how, __sigset_t *set, __sigset_t *old_set)
+@{
+    if (old_set != (__sigset_t *)USER_NULL)
+        if (ok_to_write_area(old_set, sizeof(__sigset_t)))
+        @{
+            SYSCALL_PROLOG();
+            *old_set = this->sigblocked;
+            SYSCALL_EPILOG();
+        @}
+        else
+            return -EFAULT;
+
+    if (set == (__sigset_t *)USER_NULL)
+        return 0;
+
+    if (!ok_to_read_area(set, sizeof(__sigset_t)))
+        return -EFAULT;
+
+    switch (how)
+    @{
+        case SIG_BLOCK  : this->sigblocked &=   *set & SIG_BLOCKABLE;  break;
+        case SIG_UNBLOCK: this->sigblocked &= ~(*set & SIG_BLOCKABLE); break;
+        case SIG_SETMASK: this->sigblocked  =   *set & SIG_BLOCKABLE;  break;
+        default         : return -EINVAL;
+    @}
+
+    return 0;
+@}
+@end example
+
+SYSCALL_PROLOG() and SYSCALL_EPILOG() are macros that set and reset the
+kwreq flag in the current process u_area in order to get around the i386
+virtual memory flaw.  They expand to nothing on i486 machines.
+
+@example
+#ifdef __i386k__
+#define SYSCALL_PROLOG()        @{ this->kwreq = 1; @}
+#define SYSCALL_EPILOG()        @{ this->kwreq = 0; @}
+#else
+#define SYSCALL_PROLOG()
+#define SYSCALL_EPILOG()
+#endif
+@end example
+
+The ok_to_read_area() and ok_to_write_area() are as simple as possible,
+so that they will not be a bottleneck in handling system calls.  To have
+an idea of how they look like, here it is the code for
+ok_to_read_area().  ok_to_write_area() is more complex because it has to
+deal with the i386 virtual memory flaw, as explained before, but
+basically it does the same thing.
+
+@example
+int ok_to_read_area(void *pointer, unsigned size)
+@{
+    unsigned end = (unsigned)pointer + size;
+    unsigned brk = this->brk + KERNEL_RESERVED_SPACE;
+    unsigned stk = user_level_ESP[current_kpid] + KERNEL_RESERVED_SPACE;
+
+    if ((unsigned)pointer < KERNEL_RESERVED_SPACE)
+        return 0;
+
+    if ((unsigned)pointer >= stk && end >= stk && (unsigned)pointer <= end)
+        return 1;
+
+    if ((unsigned)pointer <= brk && end <= brk && (unsigned)pointer <= end)
+        return 1;
+
+    return 0;
+@}
+@end example
+
+Checking for invalid pointers can be tricky because not all the pointers
+supplied as arguments to system calls point to a fixed size memory area.
+A good example of a system call receiving such pointers as arguments is
+the exec() system call.  Its arguments are pointers to lists of pointers
+to strings.  These strings contain the new image command line arguments
+and environment and have to be checked and copied to the new image
+stack.
+
+There are two different kinds of pointers in the exec() system call.
+First the kernel has to check that the pointer lists are valid.  This
+involves a search for the terminating NULL pointer.  The problem here is
+that the kernel doesn't know how long the pointer lists are, so it has
+to keep searching until the NULL pointer is found.  Suppose a process
+uses about 2 Mb of data space, fills it with a nonzero pattern and then
+pass it as an argument to the exec() system call.  The kernel will
+search all these 2 Mb of memory, eventually faulting while accessing
+missing pages, wasting an important amount of CPU time.  The solution
+was to search for the terminating NULL pointer only in the first ARG_MAX
+bytes, the unvarying maximum combined length of the command line and
+environment arguments that can be passed to the exec() system call.  The
+second case is similar, the only difference being that the kernel
+searches for the terminating null character of the strings in the new
+image command line and environment.
+
+
+@node File System, Device Drivers, Virtual Memory, top
+@chapter The File System
+
+In the first version of the Thix kernel I've implemented the file system
+as described in the Maurice Bach's book @samp{The design of the UNIX
+system}.  The file system described there keeps track of free blocks
+using a linked list and I've figured out that bitmap based
+implementations would be much faster and stable due to several reasons:
+
+@display
+a.  The file system fragmentation cannot be controlled.  When the kernel
+needs a new block, it has no other choice than using the block in the
+head of the linked list.  Since after a period of time the linked list
+contains random block numbers, new files will be scattered all over the
+disk.
+@end display
+
+@display
+b.  The seek time cannot be minimized.  For the same reasons described
+before, disk heads must seek to random places in order to read the
+required file blocks.
+@end display
+
+@display
+c.  When the superblock cache of inode numbers becomes empty, the kernel
+must read several inodes from disk and check their state in order to get
+free ones.
+@end display
+
+@display
+d.  Not being able to read one single block on the linked list can
+easily lead to the lost of the entire free list pool.  The file system
+can become unusable until repaired with the fsck utility.
+@end display
+
+Modern UNIX kernels are dividing the file system in cylinder groups,
+allocating new blocks and inodes from one cylinder group at a time in
+the attempt of reducing fragmentation and seek time.  For each cylinder
+group there is a bitmap to keep track of free blocks and another to keep
+track of free inodes.  The new version of the Thix kernel implements a
+similar, bitmap based file system structure, which has really better
+performances than the old one and is much more stable.  Each time the
+kernel switches to another cluster (this is the name I've used for
+@samp{cylinder group}) because there are no available resources of one
+kind (inodes or blocks), it tries to allocate the other kind of
+resources from the same cluster or from a very close one, in order to
+reduce the seek time.  At this moment there is nothing done yet to keep
+low fragmentation rates, but this optimization will be added in the
+future.
+
+@menu
+* Buffer cache::                The buffer cache
+* Layout::                      The file system layout
+* Inodes::                      Inodes management
+* Blocks::                      Blocks management
+* File Tables::                 File tables
+* Regular Files::               Regular files
+* Directories::                 Directories
+* Pipes::                       Pipes
+* Mount Points::                Mount Points
+* fsck::                        The fsck utility
+@end menu
+
+
+
+@node Buffer cache, Layout, , File System
+@section The buffer cache
+
+Every modern UNIX system has a built-in buffer cache mechanism, used to
+improve the file system performance by keeping in memory the most used
+file system blocks.  It is usually a dynamic one, meaning that the
+buffer cache can use the entire free memory, as needed.
+
+The algorithm I've used in the implementation of the dynamic buffer
+cache is an extension of the algorithm described in the Maurice Bach's
+book @samp{The design of the UNIX system}. That algorithm uses a fixed
+size memory area for the buffer cache and a single double linked list of
+buffer structures, lacking the possibility of using the excess of free
+memory for the buffer cache.
+
+For each buffer in the system, there is a structure storing information
+about it. These structures are linked together in two double linked
+lists.  The first one contains unused structures, the second one
+structures pointing to buffers containing valid data:
+
+@example
+typedef struct
+@{
+    unsigned block         : 24,
+             busy          : 1,
+             in_demand     : 1,
+             delayed_write : 1,
+             valid         : 1,
+             dedicated     : 1;
+
+    __dev_t device;
+    unsigned short size;
+
+    unsigned char *address;
+
+    unsigned short hprev;
+    unsigned short hnext;
+
+    unsigned short lprev;
+    unsigned short lnext;
+
+    unsigned short next;
+    unsigned short __fill;
+@} buffer;
+@end example
+
+The basic idea is to have a number of buffer structures big enough to
+cover the entire amount of buffers needed at a given moment or to
+dynamically allocate buffer structures. A single linked list is not
+enough for an efficient buffer cache management, because if the system
+has to shrink the space used by the buffer cache, the operation of
+parsing the linked list in order to get rid of some buffers and to write
+to the disk the delayed write ones will be slowed down by a large amount
+of unused structures that need to be skipped.
+
+This was the reason why I've used two linked lists. If we have more free
+memory and we can use it for the buffer cache, the structures needed for
+the new buffers are got from the first list (that containing the unused
+buffer structures). These structures will be deleted from there and
+inserted into the second linked list. When we have to free some memory
+used by the buffer cache, the linked list used for valid buffers will be
+parsed, freeing up the used memory, removing the structures from there
+and inserting them in the unused structures linked list until enough
+memory has been freed.
+
+The file system can't work without the buffer cache. In the special case
+when all the valid buffers have been discarded and there is not enough
+memory for new ones, the system would be unusable. This leads to the
+idea of having a dedicated pool of free pages, big enough to keep the
+system going.  The dynamic kernel memory allocation routines can receive
+a pointer to a local allocator function, specific to each kernel
+algorithm, used to get memory for the dedicated free pages pool. If such
+a pointer is specified, the kernel will try to allocate memory from the
+dedicated free pages pool before trying to use the global one.
+
+
+@node Layout, Inodes, Buffer cache, File System
+@section Layout
+
+
+This section will describe the layout of the Thix File System (TFS).  A
+file system block is 1024 bytes long.
+
+The first file system block contains the boot block.  It can be used to
+boot the system, but in the current implementation this block is unused
+because the kernel boots from a separate partition.  However, future
+versions of the kernel might use it in order to reduce the number of
+partitions needed.
+
+The second file system block contains the superblock.  Since the
+superblock contains a big amount of vital file system information, this
+block is replicated in several other places on the disk, as we will see.
+Here it is the superblock description:
+
+@example
+typedef struct
+@{
+    unsigned       s_fsize;     /* Total number of blocks in the fs.  */
+    unsigned       s_bblsz;     /* Bad blocks list size (in blocks).  */
+    unsigned       s_clusters;  /* Clusters in the file system.  */
+    unsigned       s_icluster;  /* Inodes in a cluster.  */
+    unsigned       s_bcluster;  /* Data blocks in a cluster. (R)  */
+    unsigned       s_lcflag;    /* Last cluster status flag.  */
+    unsigned       s_blcluster; /* Blocks in the last cluster.  */
+    unsigned       s_bpcluster; /* Blocks per cluster. (R)  */
+    unsigned       s_ublocks;   /* Unused blocks.  */
+
+    unsigned       s_ifree;     /* Total free inodes.  */
+    unsigned       s_bfree;     /* Total free blocks.  */
+
+    unsigned       s_flock;     /* Lock used during file manip.  */
+    unsigned       s_ilock;     /* Lock used during inodes manip.  */
+
+    unsigned       s_fmod;      /* Superblock modified flag.  */
+    unsigned       s_ronly;     /* Mounted read only flag.  */
+
+    unsigned       s_time;      /* Last superblock update.  */
+    unsigned       s_state;     /* File system state.  */
+    unsigned       s_magic;     /* File system magic number.  */
+
+    unsigned       s_blksz;     /* File system block size.  */
+    unsigned       s_direntsz;  /* Directory entry size (power of 2).  */
+
+    unsigned char  s_ftype[64]; /* File system type.  */
+    unsigned char  s_fname[64]; /* File system name.  */
+
+    unsigned       s_f_in_demand; /* Block access required.  */
+    unsigned       s_i_in_demand; /* Inode access required.  */
+
+    unsigned       s_ssbldsz;   /* Second stage boot loader size.  */
+
+    unsigned char  s_fill[288]; /* Adjust this to reach 512 bytes.  */
+
+    unsigned       s_checksum;  /* Superblock checksum (0-507).  */
+@} superblock;
+@end example
+
+Note that some fields are currently unused and some other are redundant.
+They are provided for future use and for additional consistency
+checkings.
+
+After the superblock, a number of blocks are reserved for the list of
+bad file system blocks.  The information about the number of blocks
+reserved for this list is kept in the superblock.  The amount of blocks
+reserved is decided when creating the file system with mkfs and cannot
+be changed afterwards.
+
+As explained before, the file system is divided into smaller pieces
+called clusters (cylinder groups).  The first cluster is located at the
+end of the bad blocks list.  Each cluster contains a superblock copy as
+its first block and two bitmaps (1 Kb each) to keep track of inodes and
+blocks.  For each inode and block in that cluster there is a bit in the
+corresponding bitmap keeps its status: 0 means the inode/block is
+allocated, 1 means it is free.  We can keep track of 8*1024=8192 blocks
+and 8192 inodes in such a bitmap, but since such a huge number of inodes
+per cluster would be inappropriate, only the blocks bitmap is completely
+used.  After the superblock copy and the two bitmaps a cluster contains
+a number of blocks for the actual inodes (the number of inodes can be
+specified when creating the file system) and 8192 blocks.
+
+
+@node Inodes, Blocks, Layout, File System
+@section Inodes
+
+An inode is a small structure that keeps information about a file.  The
+inode structures are kept on disk, as explained in the Layout section.
+
+Here it is the inode layout.  It is 128 bytes long, and contains enough
+information to allow the kernel to access the file.  Inode operations
+are subject of caching through the buffer cache.  For even faster
+access, the kernel keeps a hash table of in core inodes, in order to
+figure out quickly if a given inode should be loaded from disk or it can
+be located into the main memory.
+
+Here it is the disk inode layout:
+
+@example
+typedef struct
+@{
+    __mode_t       di_mode;     /* File mode.  */
+    __nlink_t      di_nlinks;   /* Inode number of links.  */
+
+    __uid_t        di_uid;      /* File owner id.  */
+    __gid_t        di_gid;      /* File owner group.  */
+
+    size_t         di_size;     /* File size.  */
+    size_t         di_blocks;   /* Real number of blocks.  */
+
+    unsigned char  di_addr[70]; /* Direct & indirect blocks map.  */
+
+    unsigned short di_pipesize; /* Pipe size.  */
+
+    __time_t       di_atime;    /* Last access time.  */
+    __time_t       di_mtime;    /* Last modification time.  */
+    __time_t       di_ctime;    /* Last status change time.  */
+
+    __dev_t        di_rdev;     /* Special file major/minor numbers.  */
+
+    unsigned short di_pipercnt; /* Pipe readers count.  */
+    unsigned short di_pipewcnt; /* Pipe writers count.  */
+    unsigned short di_piperoff; /* Pipe read  offset.  */
+    unsigned short di_pipewoff; /* Pipe write offset.  */
+
+    unsigned long  di_atime_usec;       /* Fractional part of di_atime.  */
+    unsigned long  di_mtime_usec;       /* Fractional part of di_mtime.  */
+    unsigned long  di_ctime_usec;       /* Fractional part of di_ctime.  */
+
+    __time_t       di_ktime;    /* Unmodifiable last modified time.  */
+@} dinode;
+@end example
+
+Each time a file is opened, an in core inode is allocated and the disk
+inode is loaded into it.  An in core inode is an inode that contains all
+the information provided by a disk inode plus some other information
+related to the in core inode state: the reference count, hash table
+pointers, several flags, etc.
+
+@example
+typedef struct
+@{
+    /* Disk inode.  Not included again for the sake of brevity.  */
+    .....
+
+    unsigned char  busy         : 1,    /* Busy flag.  */
+                   in_demand    : 1,    /* Access to the inode requested.  */
+                   modified     : 1,    /* Modified flag.  */
+                   mount_point  : 1,    /* The file is a mount point.  */
+                   write_denied : 1,    /* Set when the file is currently
+                                           being executed.  */
+                   exec_denied  : 1;    /* Set when the file is currently
+                                           open for writing.  */
+    unsigned char  __fill;
+
+    __dev_t        device;
+    __ino_t        dinode;      /* Disk inode number.  */
+    __nlink_t        nref;      /* Inode reference count.  */
+
+    unsigned short hprev;
+    unsigned short hnext;
+    unsigned short lprev;
+    unsigned short lnext;
+@} inode;
+@end example
+
+In order to prevent possible races while allocating/deallocating disk
+inodes (by setting/resetting bits in the inode bitmaps), the kernel
+locks the superblock for inode operations.
+That is, the s_ilock flag is set into the in core copy of the superblock
+and any other process that will try to allocate or deallocate an inode
+will sleep until the lock is released.  Here there are the two routines
+locking and unlocking the superblock:
+
+@example
+void sb_i_lock(superblock *sb)
+@{
+    while (sb->s_ilock)
+    @{
+        sb->s_i_in_demand = 1;
+        sleep(&sb->s_ilock, WAIT_SUPERBLOCK);
+    @}
+
+    sb->s_ilock = 1;
+@}
+
+
+void sb_i_unlock(superblock *sb)
+@{
+    sb->s_ilock = 0;
+
+    if (sb->s_i_in_demand)
+    @{
+        wakeup(&sb->s_ilock);
+        sb->s_i_in_demand = 0;
+    @}
+@}
+@end example
+
+Given a disk inode, the kernel will allocate an in core inode for it.
+Then, the in core inode is filled with the contents of the disk inode.
+This is done by the i_get() routine which returns the in core inode
+number.  When a disk inode is no longer needed, its corresponding in
+core inode is deallocated using the i_release() routine.
+
+Allocation and deallocation of disk inodes is handled by i_alloc() and
+i_free().  Basically, i_alloc() searches a free inode in the current
+cluster and, if it fails to find one, keeps switching to another cluster
+until a free disk inode is found.  Of course, it first checks if there
+is at least one free disk inode in the file system before starting the
+actual search.  i_free() simply sets the disk inode bit into the
+corresponding bitmap.
+
+During many file related operations the kernel has to guarantee to a
+process that it has exclusive access to a given inode.  This is done by
+locking the inode before entering the critical region and releasing it
+afterwards.  The implementation of the locking mechanism is similar with
+the superblock locking mechanism described before.  The functions
+actually locking the inode are i_lock() and i_unlock().
+
+When a file becomes bigger than about 20 Kb, the disk inode will not be
+able to keep track of all the blocks used by that file.  As a result,
+block numbers will be kept into special blocks, called indirect blocks,
+and each time a read or write request will specify a file offset bigger
+than 20 Kb, a search through such indirect blocks will be initiated.
+Unfortunately, doing so for each block over 20 Kb will be expensive.
+The current version of the Thix File System reads all the contiguous
+blocks found in the last level indirect block and sends them to the
+corresponding device driver.  This will reduce the time needed for
+indirect block parsing and will also improve the device driver
+performance because contiguous blocks are read/written faster.
+
+
+@node Blocks, File Tables, Inodes, File System
+@section Blocks
+
+File system blocks are handled in a similar way.  If a process needs a
+new file system block, it will pick up one from the current cluster, if
+possible.  Otherwise, it will start searching for free blocks in other
+clusters.  Note also that the superblock is locked during the search so
+that different processes searching for a new file system block will not
+interfere.
+
+
+@node File Tables, Regular Files, Blocks, File System
+@section File Tables
+
+The kernel keeps track of files using a global file descriptors table.
+Each structure in this table looks like this:
+
+@example
+typedef struct
+@{
+    unsigned short inode;
+    unsigned short flags;
+    unsigned       count;
+    unsigned       offset;
+@} fd_struct;
+@end example
+
+Also the kernel keeps in u_area[] a per process table called @samp{user
+file descriptor table} (ufd) that contains pointers to global descriptor
+table entries.  Each process opening a file will receive a file handle
+(if the operation was successful) that is an index into the user file
+descriptor table.  The kernel will use this ufd to get the file
+descriptor when accessing the file.
+
+
+@node Regular Files, Directories, File Tables, File System
+@section Regular Files
+
+Since regular files are the most used type of files in the file system
+and the global system performance depends very much on their
+implementation, a brief discussion will help understanding how they are
+handled.
+
+The read() and write() system calls are entry points for access to all
+file types.  They detect the actual file type and call the appropriate
+routine.  If a regular file is detected, regular_read() or
+regular_write() is called.
+
+Due to the limited number of direct block entries in the inode
+structure, only the first 20 direct block numbers can be obtained from
+the inode.  In order to be able to read the other blocks, the kernel
+will start searching through indirect blocks, as explained before.
+
+Based on the low level support provided by the inode implementation for
+getting sets of contiguous block numbers from the last indirect blocks,
+the read() and write() system calls provide a mechanism to optimize
+regular file operations by feeding the corresponding device driver with
+optimized requests.  Such requests contain sets of contiguous blocks and
+can be usually handled in only one step.
+
+The kernel has to take care not to allow write operations on binaries
+that are currently executed or to try to execute a binary that is
+currently opened for write.  Otherwise, if the system's load average is
+high and the swapper decides that a code page should be discarded, when
+the process will reload it from the file system, that page will contain
+something else and the process might die trying to execute random code.
+
+
+@node Directories, Pipes, Regular Files, File System
+@section Directories
+
+
+Directories are in fact regular files that contain file entry points.
+Each directory entry contains an inode number and a file name.  The size
+of the file name can be specified when creating the file system with the
+mkfs utility.  The default is 30 bytes.  The inode number is a 16 bit
+number, but in the future it will be a full 32 bit number, allowing the
+creation of file systems with huge number of files.
+
+Directories can be read in the same way normal files are.  This is not
+recommended, though, because the kernel also provides a readdir() system
+call that fills a dirent structure.  This structure will provide the
+user with the directory entry contents in a implementation independent
+way.  The possibility of directly reading the directory contents is
+provided only for compatibility with older implementations of the UNIX
+system.  The C library reads the directory contents using the readdir()
+system call.  Writing to a directory is not permitted, a directory can
+be modified only by creating or deleting files.
+
+Here it is the dirent structure:
+
+@example
+struct dirent
+@{
+    __ino_t d_fileno;           /* File inode number.  */
+
+    size_t d_namlen;            /* Length of the file name.  */
+
+    /* Only this member is in the POSIX standard.  */
+    char d_name[NAME_MAX + 1];  /* File name.  */
+@};
+@end example
+
+
+@node Pipes, Mount Points, Directories, File System
+@section Pipes
+
+The implementation of pipes provides all the features UNIX pipes need.
+This includes blocking, sending SIGPIPE, named and unnamed pipes, etc.
+Users can create pipes with the pipe() or mknod() system calls and
+access them through read() and write().  Because the kernel implements
+pipes in the file system and because a pipe does not exist before its
+use, the kernel must assign an inode for it on creation.  It also
+allocates a pair of user file descriptors and corresponding file table
+entries for the pipe: one file descriptor for reading from the pipe and
+the other for writing to the pipe.  It uses the file table so that the
+interface for the read, write and other system calls is consistent with
+the interface for regular files.  Information about the number of pipe
+readers and writers and the current offsets is kept in the inode
+structure.  Maintaining the pipe offsets in the inode allows convenient
+FIFO access to the pipe data and differs from regular files where the
+offset is maintained in the file table.  Processes cannot adjust them
+via the lseek() system call so random access I/O to a pipe is not
+possible.
+
+
+@node Mount Points, fsck, Pipes, File System
+@section Mount Points
+
+In order to be able to access several file systems at the same time,
+UNIX systems usually mount a file system into an empty directory of an
+already mounted file system.  When parsing a path (the historical
+namei() algorithm), the kernel detects directories (in fact inodes) that
+are mount points and continues to parse the path in the mounted file
+system in a transparent way.  Once the mounted file system is no longer
+needed, the previously mounted file system can be unmounted (using the
+umount() system call) and the directory where the file system was
+mounted becomes accessible again.
+
+The kernel keeps track of mount points using structures like this:
+
+@example
+typedef struct
+@{
+    __dev_t device;             /* Device (major/minor).  */
+    int fd;                     /* mp file descriptor.  */
+    int vmdev;                  /* VM device number.  */
+    superblock *sb;             /* Device superblock.  */
+    int dir_i_no;               /* Mount point parent directory
+                                   inode.  */
+    int mp_i_no;                /* Mount point directory inode.  */
+    int root_i_no;              /* Root inode of the mounted fs.  */
+    int icluster;               /* Cluster used for op. on inodes.  */
+    int bcluster;               /* Cluster used for op. on blocks.  */
+    int icount;                 /* Free inodes in ibitmap.  */
+    int bcount;                 /* Free blocks in bbitmap.  */
+    unsigned *ibitmap;          /* Current inodes bitmap.  */
+    unsigned *bbitmap;          /* Current blocks bitmap.  */
+@} mp_struct;
+@end example
+
+When a new file system is mounted, the superblock is checked for
+consistency (including magic numbers, etc) and if the file system
+to be mounted is not valid, the mount operation will fail.
+
+
+@node fsck, , Mount Points, File System
+@section The fsck Utility
+
+
+File systems have to be repaired from time to time, mainly due to system
+crashes or to power failures.  When such an event occurs, the system
+usually goes down without having a chance to synchronize the file
+systems.  Delayed write buffers will not be flushed and, as a result,
+the file system structure will be inconsistent.
+
+Most of the time inconsistencies make the file system unstable.  With
+little care, though, part or all the data can be recovered, and the file
+system can be used again.  UNIX systems usually provide an utility
+called @samp{fsck} (file system check) that can be used to repair a
+damaged file system.
+
+In order to prevent races, the fsck utility should be run in single user
+mode.  Running a file system repair utility while other programs are
+reading or writing to it is generally a bad idea because the repair
+utility access the file system at a raw level and might interfere with
+higher level operations.
+
+As any other UNIX system, Thix provides a fsck utility.  During
+development, this utility has been proved very useful, being able to
+repair really damaged file systems with minimum data loss.
+
+I will discuss here the fsck implementation as it applies to the latest
+version of the Thix File System.
+
+@subsection Stage 1 - Checking the Superblock
+
+First of all, the fsck utility tries to open the specified device and
+checks the superblock for consistency.  A algorithm similar to that of
+the mount system call is used, except that fsck will refuse to continue
+only if an unrecoverable error occur.  This is the first stage of the
+fsck utility.
+
+@subsection Stage 2 - Checking Inodes and Blocks
+
+In the second stage, each cluster's inode and block bitmaps are checked.
+Every inode that is marked free in the bitmap should have its di_mode
+field 0, and should have no links.  Any inode that is marked in use in
+the bitmap should contain a valid file type field.  Otherwise, the user
+will be prompted for a file type.  The default is S_IFREG (regular
+file).  Also in use inodes should have a nonzero number of links.  Once
+an in use inode pass these tests, its number of data blocks is computed
+and compared with the di_blocks field.  If the number of blocks is found
+to be incorrect, its value is set to the computed value.  During this
+step, the entire map of used blocks is recorded and the block bitmaps
+are adjusted.
+
+@subsection Stage 3 - Checking Files and Directories
+
+If the errors detected in the first two stages are too severe and cannot
+be fixed "on the fly", fsck will
+refuse to continue.  Running fsck again will fix more errors (usually
+all of them) and then perform the next stages.  Note that this doesn't
+happen when fsck is able to fix all the errors.  When an error is
+encountered, the global error counter is incremented, but once the error
+has been fixed, the counter is decremented and the execution continues
+normally.
+
+In the third stage, the entire file system tree is parsed and all the
+directories are checked.  A valid directory should contain at least two
+entries, for the "." and ".." directories.  Each entry should point to a
+valid inode number, otherwise the entry is deleted (the inode number set
+to 0) since there is no way to recover the pointed file (if any).
+During this stage, each inode's number of links is computed.
+
+@subsection Stage 4 - Rechecking Inodes for Invalid Number of Links
+
+In the last stage the number of links computed in the third stage are
+compared against the number of links actually found in the inodes.  If
+differences are found, the di_nlinks fields are set to the computed
+values.
+
+fsck sometime fails to fix the file system in only one step.  This is
+normal, since errors detected in later stages can affect the behavior of
+earlier ones.  fsck returns 0 only if no error is detected during the
+four stages described before.
+
+The fsck utility will be improved as the file system will become more
+complex.  Users will be asked how things should be handled more often,
+even though the default action is usually correct.  fsck should also be
+improved in order to handle some race conditions that can occur when it
+is run on mounted file systems.
+
+
+@node Device Drivers, System Startup, File System, top
+@chapter Device Drivers Implementation
+
+
+@menu
+* Floppy Disk::                 The floppy disk device driver
+* Hard Disk::                   The hard disk device driver
+* Virtual Terminals::           The virtual terminals device driver
+* Physical Memory::             The physical memory device driver
+* Kernel Memory::               The kernel memory device driver
+* Null::                        The null device driver
+@end menu
+
+
+@node Floppy Disk, Hard Disk, , Device Drivers
+@section The Floppy Disk Device Driver
+
+
+On PCs, data transfers between the floppy disk and the main memory are
+performed using the second DMA (Direct Memory Access) channel.
+
+In order to read data from the floppy, the driver will send the
+positional parameters to the floppy controller, program the DMA channel
+to read the required amount of data and then go to sleep, waiting for
+the expected interrupt to occur.  When the controller finishes
+transferring the data, the interrupt is delivered and the process that
+previously went to sleep is waked up and resumes execution.  This is
+basically what happens inside the floppy driver, even though the actual
+implementation is more complicated due to the fact that many parameters
+have to be sent to the controller and to the DMA channel in order for
+the driver to work.  Please consult the driver sources or the
+controller's thechnical specifications for more details.
+
+
+@node Hard Disk, Virtual Terminals, Floppy Disk, Device Drivers
+@section The Hard Disk Device Driver
+
+In contrast to the floppy driver, the IDE hard disk controller doesn't
+use a DMA channel.  This would be too slow, so data transfer from/to the
+hard disk is done through ports.
+
+When writing data to the disk, things happen more or less as in the
+floppy driver (except that we are not using a DMA channel, as explained
+before).  The driver sends the positional parameters to the controller
+then writes the data to the 0x1F0 port and goes to sleep, waiting for an
+interrupt.  However, when reading data, all the operations have to be
+performed during the interrupt, so that the interrupt handler leaves the
+controller in a clean state, ready to handle new commands.  This implies
+that we cannot leave the task of reading the data from the controller to
+the process that initiated the request, but to the process running when
+the interrupt occur.  Briefly, the interrupt handler will wait until the
+controller is ready and then read the data.
+
+
+@node Virtual Terminals, Physical Memory, Hard Disk, Device Drivers
+@section The Virtual Terminals Device Driver
+
+The kernel implements 12 virtual terminals.  Switching between them
+using the function keys is easy and once the kernel is up and running, a
+single user is able to have different sessions (eventually using
+different login names) without having to start the 'screen' program.  Of
+course, this involves an additional kernel overhead in memory terms, but
+this is an useful feature provided by many UNIX systems.  Each virtual
+terminal is treated as an independent terminal, with its own screen
+contents, cursor position, current mode, etc.  An input queue of 256
+characters per terminal is provided, allowing enough space for typed
+ahead characters.
+
+In order to be as efficient as possible, virtual terminals implement
+hardware scrolling, taking advantage of the CGA/EGA/VGA chips's ability
+to change the text mode starting video address.  These are the currently
+implemented termcap capabilities:
+
+@example
+ho      ll      le      nd      up      do
+vb      vs      vi      ve      cl      cd
+ce      al      dl      AL      DL      dc
+sf      sr      so      md      mb      me
+cm
+@end example
+
+The virtual terminals provide an almost complete implementation of the
+POSIX specification.  It supports both canonical and non-canonical
+terminal modes, absolute cursor positioning, interrupt and kill
+characters, buffered input, timeouts, etc.  Support for the standard
+ANSI color sequences has been added recently.
+
+A complete termcap entry for the vtty terminal type (virtual terminal)
+is provided with the system.  The GNU termcap library has been ported
+and interactive programs like editors and file managers seem to have no
+problem using it so far.  Here it is the standard vtty termcap entry:
+
+@example
+vt|vtty|Thix virtual terminal:\
+        :co#80:li#25:am:km:bl=^G:\
+        :ku=\EA:kd=\EB:kr=\EC:kl=\ED:kb=^H:\
+        :k1=\E@@a:k2=\E@@b:k3=\E@@c:k4=\E@@d:k5=\E@@e:\
+        :k6=\E@@f:k7=\E@@g:k8=\E@@h:k9=\E@@i:k;=\E@@j:\
+        :F1=\E@@k:F2=\E@@l:\
+        :kP=\EI:kN=\EJ:kI=\EE:kD=\EF:kh=\EG:kH=\EH:\
+        :cm=\E]%i%d;%dH:cr=^M:\
+        :ho=\EMH:ll=\EML:le=\EME:nd=\EMN:do=\EMD:\
+        :vb=\EB:vs=\EVS:vi=\EVI:ve=\EVE:\
+        :cl=\ECS:cd=\ECD:ce=\ECE:\
+        :al=\ELA:dl=\ELD:\
+        :dc=\EDC:\
+        :sf=\ESF:sr=\ESR:\
+        :ms:so=\EAS:se=\EAE:mr=\EAS:md=\EAD:mb=\EAB:me=\EAE:
+@end example
+
+@node Physical Memory, Kernel Memory, Virtual Terminals, Device Drivers
+@section The Physical Memory Device Driver
+
+The physical memory driver (/dev/mem) provides access to the computer
+physical memory.  Reading or writing at addresses outside the physical
+address space will not result in page fault exceptions but the
+read/write system calls will return the number of characters
+read/written (probably 0, depending on the system call's arguments).
+
+
+@node Kernel Memory, Null, Physical Memory, Device Drivers
+@section The Kernel Memory Device Driver
+
+The kernel memory (/dev/kmem) driver provides access to the kernel
+virtual memory.  It can be used to examine and even patch the kernel.
+Using the kmem special file a process can access up to 4 Gb of virtual
+memory.
+
+
+@node Null, , Kernel Memory, Device Drivers
+@section The Null Device Driver
+
+The null device driver (/dev/null) is the simplest driver in the kernel.
+It provides a read function that always return 0 and a write function
+that always return the number of characters specified in the write
+request.
+
+
+@node System Startup, Current Status, Device Drivers, top
+@chapter System Startup
+
+
+Usually there are lots of initializations that should be performed in
+order to bring the system up and running.  Most of them are related to
+the hardware.  They include the interrupt controllers, the keyboard,
+etc.  There is also necessary to detect the type and/or size of the
+floppy & hard drives and other hardware components and to initialize the
+processor stack, interrupt descriptor table and global descriptor table.
+
+As a second step, different parts of the kernel have to be initialized:
+device drivers, the virtual memory manager, the scheduler and the file
+system are only some of them.
+
+@menu
+* Interrupt Controllers::       Interrupt Controllers Initialization
+* Keyboard::                    Keyboard Initialization
+* Floppy Drives::               Floppy Drives Detection
+* Hard Drives::                 Hard Drives Detection
+* Terminals::                   Virtual Terminals Initialization
+@end menu
+
+
+@node Interrupt Controllers, Keyboard, , System Startup
+@section Interrupt Controllers Initialization
+
+
+PC's motherboards use two Intel 8259 interrupt controllers.  They are
+usually called I8259A and I8259B.  All the I8259B interrupts are mapped
+to the second interrupt level of the first interrupt controller
+(I8259A).
+
+In order to initialize the two interrupt controllers, the kernel sends
+the initialization sequences to both of them, then sends the starting
+hardware interrupt numbers (0x20 for I8259A and 0x28 for I8259B, in
+order to avoid mapping on Intel reserved interrupts (0x00-0x1F)).  The
+first interrupt controller is set up as master and the second one as
+slave, both in 8086 mode.
+
+Since the current version of the kernel only handles hardware interrupts
+from the floppy and hard disk controllers (IRQ 0x06 and IRQ 0x0E), from
+the system clock (IRQ 0x00) and from the keyboard (IRQ 0x01), all the
+other hardware interrupts are masked.  The only exception is IRQ 0x02
+which is unmasked in order to be able to receive interrupts from the
+second interrupt controller (notably IRQ 0x0E) which are mapped on this
+IRQ.
+
+
+@node Keyboard, Floppy Drives, Interrupt Controllers, System Startup
+@section Keyboard Initialization
+
+Some PCs need a keyboard initialization sequence at startup.  This is
+strange because most machines work just fine without it, mainly because
+the BIOS performs it at boot time.
+
+The initialization sequence first reads a key (!?) and then sets the
+keyboard address lines.  Without any of these, some PCs will simply load
+and run the kernel but no hardware interrupt will ever come from the
+keyboard.
+
+
+@node Floppy Drives, Hard Drives, Keyboard, System Startup
+@section Floppy Drives Detection
+
+
+Floppy drive types are detected when the floppy device driver is
+initialized.  These types are stored in the CMOS memory at address 0x10
+(4 bits for each floppy).  Currently the kernel only supports the 1.2 Mb
+and 1.44 Mb floppy drives, but adding new floppy drive types is just a
+matter of adding new tables with floppy controller parameters for these
+types and creating devices with different minor numbers for them.
+
+
+@node Hard Drives, Terminals, Floppy Drives, System Startup
+@section Hard Drives Detection
+
+
+Hard drives are also detected from the CMOS memory (addresses 0x12, 0x19
+and 0x1a).  The actual hard disk geometry is obtained at boot time from
+the BIOS data area and the hard disk driver uses it when it is
+initialized.  The hard disk device driver initialization is more tricky
+than the floppy disk device driver one because hard disks are usually
+partitioned and the kernel should be able to treat each partition as a
+different, logical device.  So, after the physical hard disk type and
+geometry are detected, the partition table is read and the corresponding
+device data tables are initialized.
+
+
+@node Terminals, , Hard Drives, System Startup
+@section Virtual Terminals Initialization
+
+
+The virtual terminal device driver is the first driver registered by the
+kernel.  This is done in order to be able to display messages on the
+screen while booting.
+
+The virtual terminal driver first detects the display type (color or
+monochrome) then initialize all the virtual terminals and set the focus
+onto the first one, currently used to display kernel debug information.
+
+
+@node Current Status, Future Work, System Startup, top
+@chapter Current Status
+
+
+Many free software package have been ported to the Thix system.  The
+kernel appears to be quite stable, and able to run many programs
+available on the Internet that do not involve networking.  Also a few
+general purpose libraries as the readline library, the regex library,
+etc, have been ported, in the attempt of providing as many standard UNIX
+tools as possible.  The port of the GNU C compiler and related utilities
+has been the first step in building a complete development environment.
+
+The header files are a mixture between the standard ANSI C header files
+that come with the GNU C library and the Thix include files, still being
+ANSI C compliant.  Header files for the additional libraries are also
+available.
+
+A GNU Emacs port will be soon available so that a powerful environment
+will help further development.  Here it is a list of utilities ported to
+Thix so far.  Most of them have been compiled under Thix, using the GNU
+C compiler version 2.5.8.
+
+@example
+
+Binaries:
+
+ar              as              banner          basename        bash
+bc              c++filt         cal             cat             chgrp
+chmod           chown           cksum           clear           cmp
+comm            compress        cp              cpp             csplit
+cut             date            dhrystone       dirname         dosdir
+dosread         echo            egrep           env             expand
+expr            false           fgrep           fold            fsck
+g++             gasp            gcc             git             grep
+gunzip          gzip            head            hostname        id
+init            joe             join            kill            ld
+ln              login           logname         ls              mail
+make            man             mesg            mkdir           mkfs
+mknod           more            mount           mv              nice
+nl              nm              nohup           objcopy         objdump
+od              passwd          paste           pathchk         pr
+printenv        printf          protoize        ps              pwd
+ranlib          reboot          renice          rgrep           rm
+rmdir           sed             sh              size            sleep
+sort            split           strings         strip           stty
+su              sum             swapon          sync            tac
+tail            tar             tee             test            tfsck
+time            touch           tr              true            tty
+umount          uname           unexpand        uniq            unprotoize
+update          users           vi              vmstat          wc
+which           who             whoami          yes
+
+Libraries:
+
+libc.a          libreadline.a   libtermcap.a    libregex.a      libtilde.a
+libm.a          libmcheck.a     libhistory.a    libposix.a      libglob.a
+libbsd-compat.a
+@end example
+
+
+Most of these programs and libraries come from freely available GNU
+packages.  A few of them have been ported from Minix.  I have written
+the file system related utilities (fsck, mkfs, mount and umount) and the
+init program since they are system specific.
+
+
+@node Future Work, , Current Status, top
+@chapter Future Work
+
+
+First of all, I intend to test as well as possible the code written
+since today.  No one will ever be able to say that an operating system
+has no bugs because operating systems are usually hard to test.  Porting
+and running existing software appears to be one of the better ways of
+doing it.
+
+Many things have to be done to the kernel, especially in the virtual
+memory management and in the file system.  Things like mapping files and
+devices into memory, supplementary groups, file locks, IPC, etc. should
+be implemented even though many programs will work without them.  Also
+floating point support should be added for machines with hardware
+floating point processors (i387/i487).  For machines without FPU, the
+GNU C compiler provides a software emulation library.
+
+Many device drivers have to be written, printer and serial port drivers
+being really important.  Also a mouse driver is important in order to be
+able to begin a X11R6 port.  Such a port will also require an ioctl()
+call for putting the keyboard in raw mode, a VM mechanism for mapping
+the video data area into the X server virtual address space, support for
+the BSD select() system call and a full duplex communication channel.
+
+File system optimization is another thing that has to be done.  In core
+inodes should be dynamically allocated and the algorithm of cluster
+switching should be improved.  Support for virtual file systems should
+be added in order to be able to mount different file systems and use
+them as native ones.
+
+I also intend to enhance the process scheduler, to make it able to
+differentiate between classes of users.  Many UNIX systems I've worked
+with lack this ability and start thrashing if some malicious user starts
+a lot of time consuming processes.  The kernel must be able to control
+the amount of CPU time that processes with a given user id can get.
+Limiting the number of processes a user can start (CHILD_MAX) doesn't
+seem to be good enough.
+
+
+
+
+References
+
+@example
+[1] Maurice J. Bach      "The Design of the UNIX Operating System"
+[2] Andrew S. Tanenbaum  "Operating Systems: Design and Implementation"
+[3] Andrew S. Tanenbaum  "Modern Operating Systems"
+[4] IEEE Standard 1003.1 "Portable Operating System Interface for
+                          Computer environments"
+@end example
+
+@contents
+
+@bye

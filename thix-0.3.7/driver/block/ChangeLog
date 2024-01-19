@@ -1,0 +1,9 @@
+Sun Apr  7 15:35:06 1996  Tudor Hulubei  <tudor@chang.pub.ro>
+
+	* hdc.c (hdc_open): Fixed to return -ENXIO for invalid minor
+ 	numbers.
+
+	* fdc.c: All the constants have been moved here from fdc.h.
+	(fdc_open): Fixed to return -ENXIO for invalid minor numbers.
+
+	* hdc.c: All the constants have been moved here from hdc.h.

@@ -1,0 +1,65 @@
+\begin{slide}{}
+
+
+{\small \bf \center 5. Future Work\\
+}
+
+\vspace{2cm}
+{\tiny Many free software package have been ported to {\em Thix}.  The
+kernel appears to be quite stable, and able to run many programs
+available on the Internet that do not involve networking.  However,
+many things still need to be done:
+
+\vspace{1cm}
+
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - the file system should be enhanced and optimized;\\
+\> currently the support for bad blocks handling is not used
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - mapping files into memory, file locks, IPC, etc. should\\
+\> be implemented
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - many device drivers have to be written: printer and serial\\
+\> drivers are important, also a mouse driver is necessary for\\
+\> the X Window System to run
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - a complete X Window System port will require a select()\\
+\> system call, an ioctl() for putting the keyboard in raw\\
+\> mode and a full duplex communication channel
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - the scheduler should be enhanced to be able to\\
+\> differentiate between classes of users
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - floating point support should be added for machines\\
+\> with hardware floating point processors; for machines\\
+\> without FPU, the GNU C compiler provides a software\\
+\> emulation library
+\end{tabbing}
+
+\begin{tabbing}
+\hspace{1cm} - \= \kill
+\hspace{1cm} - a port of GNU Emacs should be done as soon as possible,\\
+\> with the idea of providing the user with a powerful\\
+\> development environment
+\end{tabbing}
+
+}
+
+\end{slide}

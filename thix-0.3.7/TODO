@@ -1,0 +1,525 @@
+--*-text-*--
+
+				Thix TODO
+				=========
+
+
+1. FLOPPY DISK
+--------------
+
+- Sa detecteze time out la discheta de 3.
+
+- Sa detecteze automat tipul de discheta/unitate.
+
+- De facut logica de floppy_change_line.
+
+- In fdc.c trebuie sa aflu care este ultimul sector citit/scris corect
+pentru a nu-l citi/scrie din nou la retry. Trebuie facut ceva cam ca
+la hard disk. Nu trebuie decat sa aflu ultimul sector ...
+
+- Sa poata citi toate tipurile de discheta utilizand fisiere speciale
+diferite avand nume inspirate din dimensiunea dischetei.  E mult mai
+simplu asa decat sa fac autodetect :-)
+
+
+2. MEMORY & PROCESS MANAGEMENT
+------------------------------
+
+- De definitivat swapperul (sa dealoce stivele proceselor si sa faca
+toate testele necesare evitarii deadlock-urilor(inclusiv sa verifice
+daca nu cumva da afara pagina cu EIP)).
+
+- Treaba cu reserve_pages() e buna pana la un punct. Daca sunt pornite
+aproximativ in acelasi timp mai multe procese care necesita multa
+memorie si pornesc swapperul atunci procesele care sunt in fork() si
+vor sa-si aloce multe pagini dintr-o data nu vor reusi niciodata.
+Evident, solutia este ca in fork() sa se aloce pe bucatele mai mici.
+Pardon, pt. ca treaba sa fie corecta trebuie facuta o coada de
+asteptare. In felul asta sunt sigur ca toate procesele care au cerut o
+pagina o vor primi la un moment dat si nu va astepta nici unul la
+nesfarsit. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
++ Swapperul trebuie sa faca buf_shrink(HIGH_PAGES_LIMIT) in asa fel
+incat sa elibereze suficienta memorie (pana la HIGH_PAGES_LIMIT).
+Doar daca nu poate face asta sa inceapa sa dea afara pagini din
+procese.
+
+- Poate ca work_set_ptr nu trebuie initializat chiar la fiecare fork().
+
++ De facut logica pentru this->swappages si sharedpages. S-ar putea sa
+nu fie prea usor. Nici pt. mempages nu cred ca e ok.
+
++ Swapper-ul trebuie sa verifice daca nu cumva poate sa elibereze
+memorie din stiva procesului pe care il parcurge.
+
+- Nu pricep o treaba: de ce atunci cand un proces moare (devine
+zombie) nu-si leaga copii care nu sunt zombie la parintele lui si pe
+cei care sunt zombie la init. Daca parintele nu mai exista, init i-a
+luat locul, deci nu e nici o problema (oare ?). Ar avea avantajul ca
+statisticile se mostenesc in sus, nu-i sunt plasate direct lui init.
+
+- Scrie ceva de pgrp si la pagina 212.
+
+- Poate ca ar putea fi simplificat la inceput fork() renuntand la
+logica de obtinut slot liber in tabela de procese cu vectorul ala
+auxiliar (cred ca nu se poate face decat dupa alocarea dinamica a lui
+u_area[]).
+
+- Trebuie sa fac swapper-ul asa cum zice Tanenbaum la pag. 243.
+
+
+3. RESOURCES CONTROL
+--------------------
+
+- brk si stk se reinitializeaza sau se mostenesc la exec() ?
+
+- Trebuie calculate toate campurile din structurile usage si cusage
+din TSS.
+
+
+4. SIGNALS & SLEEP/WAKEUP
+-------------------------
+
+? De implementat SA_RESTART ??? Deocamdata apelurile de sistem intorc
+-1 (errno = EINTR).
+
+- De verificat functionarea lui setitimer, getitimer, setpriority,
+getpriority, alarm.
+
+- De setat pgrp (mai e pana la job control; deocamdata profit de
+faptul ca e optional).
+
+- De implementat SA_NOCLDSTOP. POSIX pag. 65
+
+- Daca in timpul unui semnal mai apare altul, se pierde sigoldmask
+(masca semnalelor blocate, salvata inaintea primului semnal).  POSIX.1
+nu specifica nimic despre asta.  Ar trebui cumva salvate intr-o stiva.
+
+
+5. PROCESS SCHEDULER
+--------------------
+
+- De marit nr de nivele de prioritati si de setat prioritatea initiala
+a swapperului.
+
+- Pentru o precizie mai buna trebuie sa se activeze intreruperile in
+kernel cat mai des.
+
+- Fair share scheduler.
+
+- setpriority() nu trebuie sa lase chiar pe oricine sa micsoreze
+prioritatile unui proces. Doar pe owner-i.
+
+
+6. BUFFER CACHE
+---------------
+
+- In cache se folosesc buffere diferite pentru acelasi bloc fizic in
+cazul in care se folosesc /dev/hda si /dev/hda1. Asta este o problema
+de design pe care nu sunt foarte sigur cum o voi rezolva.
+
+- Structurile ce tin informatii despre buffere trebuie alocate dinamic
+pentru o mai mare flexibilitate.
+
+
+7. FILE SYSTEM
+--------------
+
+- De facut ce scrie in carte la pag 107.
+
+- Syncronous writes.
+
+- Ce se intampla cand nu mai sunt numere de device libere?
+
+- De optimizat in sys_write() stergerea buffer-ului: sa nu fie stearsa
+decat partea care nu va fi suprascrisa ulterior de memcpy().
+
+- De facut ustat cu open/close.
+
+- In i_alloc nu cumva trebuie setate si atime si mtime ????
+
+- Pentru ca sa nu se duca naibii tot mecanismul de cache, atunci cand
+se citeste fizic de pe disk montat trebuie sa fie folosita aceeasi
+dimensiune de bloc ca si pe file system.  Deocamdata toate blocurile
+sunt de 1K.
+
+- De pus bit de shutdown corect in superblock.
+
+- Cand un device bloc este inchis definitiv de ultimul proces care-l
+folosea trebuie sterse din cache-ul de pagini toate paginile asociate
+cu acel device. E FOARTE IMPORTANT.
+
+- De facut management de blocuri defecte in file system (+ mktfs +
+tfsck).
+
+- Trebuie gasita o modalitate, un loc in kernel in care sa se verifice
+corectitudinea numerelor majore/minore din inodurile fisierelor
+speciale. Nu e cazul sa intre kernelul in ceata daca /dev/null e
+marcat din greseala ca device block. Oare n-ar trebui in structurica
+trimisa ca parametru lui register_driver sa se specifice tipul
+driver-ului ?
+
+- setup_directory_entry(): Nu stiu exact ce ar trebui sa fac cu flagul
+de modified al inodului directorului si am impresia ca are legatura cu
+faptul ca daca creez un fisier, ii dau sync si il resetez de la buton
+uneori se pierde fisierul.
+
+- Trebuie apelat check_device() pe mount, umount, swapon, swapoff,
+mount_root, umount_root.
+
+- Unde se verifica validitatea numerelor minore cand se apeleaza open
+de device ?
+
+- De facut suport pentru blocuri de 2k. Sa fie totusi posibil sa se
+configureze si fs-uri cu alta dimensiune a blocurilor. Atentie ca in
+acest caz trebuie modificat si a_out_read(). Din nefericire e nasol sa
+ai in cache-ul de buffere pentru acelasi bloc si un buffer de 1k si
+unul de 2k.
+
+- De implementat algoritmul liftului pt. device-urile block.
+
+- utimes in loc de utime
+
+- Nu m-am prins exact de mai multe chestii legate de timpii fisierelor:
+
+	a. l nu actualizeaza timpii la open
+	b. l actualizeaza la write ctime si mtime. In documentatia
+	   info spune doar de mtime. ctime e implicit peste tot. Daca
+	   da, in i_set_mtime/atime sa fie trecut by default si ctime.
+	   i_set_ctime() ar putea sa dispara in acest caz.
+	c. Chiar daca timpii la open se actualizeaza asa cum spune in
+	   documentatia bibliotecii de C mie nu mi se pare corect.
+	   De ce sa actualizezi mtime la open ? Mai normal ar fi atime.
+
+- Exista nume standard pt. IOCTL-ul cu care se afle dimensiunea
+sectorului si dimensiunea totala a unui device block ?
+
+- Nu m-am prins exact ce trebuie sa intorc in dup2 si fcntl (...,
+F_DUPFD, ...). EINVAL sau EMFILE.
+
+- De revazut toate functiile din fs pentru a vedea daca fac si intorc
+ce scrie in documentatia bibliotecii de C.
+
+- Cand aloc un bloc in file system trebuie sa caut (aprox.) primul
+int care e complet 0. Blocul alocat ar trebui sa fie dupa un block
+alocat anterior. Daca se aloca blocuri pt. un alt fisier sa nu se
+aloce tot din zona aia.
+
+- Nu stiu exact ce eroare sa intorc cand nu mai exista numere de mmdev
+libere in swapon si mount. Deocamdata intoarce -EINVAL.
+
+
+8. VTTY
+-------
+
++ In documentatia de termcap scrie ca kernelul stie sa expandeze
+taburile in spatii. Cum ? Mai precis cum il fac sa nu le expandeze ?
+
+? km: care-i smecheria cu Meta key? In documentatie scrie ca seteaza
+bitul 7 dar Linux-ul, care si el pretinde ca are Meta key, pune un ESC
+in fata.
+
+- `is' e o comanda compusa ? La ce foloseste ? Fiecare login o da afara ?
+
+? ce este cu `am' si `xn' ? Oare e cazul sa ma chinui sa fac si eu
+ca vt100 si sa nu fac wrap decat daca urmatorul caracter e tot unul
+grafic ? In cazul asta va trebui sa definesc xn (vezi info termcap).
+
+- De facut ti, etc pentru initializare. Cred ca atunci cand ultimul
+inchide terminalul trebuie facut un fel de reset pt. a fi adus intr-o
+forma coerenta in caz ca ultimul l-a lasat aiurea.
+
+- MAX_CANON si MAX_INPUT trebuie sa fie identice (cred).
+
+- De facut cum trebuie ^U si backspace (sa stearga pana la ultimul
+terminator).
+
+- ECHOE, ECHOK cum trebuie.
+
+- Pot apare probleme la trecerea din ICANON in ~ICANON si invers daca
+exista caractere in coada ?
+
+- De facut excluderea mutuala intre rutina de afisare si cea care face
+ECHO cu tastele apasate daca e cazul.
+
+? vtty.c: daca apas Scroll-Lock nu se afiseaza tastele pe care le
+apas. E normal, dar ar fi normal sa mi le afiseze in clipa in care dau
+drumul la scroll-Lock (sau apas ^q). Cum nu exista coada de asteptare
+pt. output, treaba asta nu se poate face deocamdata.
+
+- Vezi comentariul de la vtty_timer.
+
+- Nu stiu exact cum trebuie implementat terminalul de control, mai
+precis ce fac procesele care nu mai au asociat un terminal de
+control. Din nefericire nu am documentatie.
+
+- Are un bug: afiseaza aiurea cand din bash scriu o linie de comanda
+care depaseste 1/2 linii de ecran.  Am inginerit-o din termcap.  Am
+scos o capabilitate (nu mai stiu care) si acum bash-ul nu mai trece la
+linie noua, dar nu stiu daca capabilitatea aia era de vina.
+
+- Daca pornesc git-ul, astept sa scrie mesajul de inceput si apas ^S
+nu-l mai pot reporni cu ^Q ci numai cu Scroll Lock.  Straniu
+
+
+9. MISCELANOUS
+--------------
+
+- De facut inline-uri pentru toate functiile standard C folosite:
+strcpy, memchr, memcmp, etc.
+
+- De facut in asa fel incat execve() (din biblioteca de C) sa apeleze
+sh-ul daca se doreste un exec de script. (Oare asa se face ?)
+
+- De pus vectorul de error peste tot unde e folosit panic.
+
+- Cred ca ar fi frumos sa implementez si FIFO_semaphore. Mai mult
+decat frumos, ar fi util :-)
+
+- Tot nu cred ca e bine facuta excluderea mutuala la drivere.  De fapt
+nici nu ar trebui facuta excluderea mutuala acolo, ar trebui sa existe
+o rutina de strategie si atunci nu ar mai exista necesitatea
+realizarii excluderii mutuale in driver.
+
+- De terminat treburile cu irq. De facut register() de rutine de
+tratare irq. S-ar putea sa fie complicat.
+
+- Poate ca accesul la toate regiunile critice ar trebui facut cu
+semafoare. Au avantajul de a nu scula toate procesele ci numai unul
+(s-ar putea ca asta sa nu fie un avantaj :-( ). Cel mai cinstit s-ar
+face cu FIFO_semaphore ...
+
+- Trebuie sa oblig cumva driverele de dispozitive bloc sa aiba
+ioctl().
+
+- In fdc.c/hdc.c ar trebui sa fac wakeup_one_process(&fdc_interrupt)
+pt. ca e mai rapid decat wakeup(&fdc_interrupt).
+
+- De activat intreruperile acolo unde este posibil in driverele bloc.
+
+- Toate headerele din kernel care nu sunt necesare afara sa fie
+incadrate de #define-uri pentru a evita redefinirea constantelor.
+
+- De verificat daca tot ce scrie in capitolul System Configuration din
+glibc (info) e OK.
+
+- startup.s e deja prea mare. Trebuie gasita o modalitate de a nu
+scrie acelasi cod pentru fiecare apel sistem. Sunt multe tipuri de
+apeluri sistem (dpdv. al parametrilor) dar poate se poate face totusi
+ceva.
+
+- Apeluri sistem ce nu mai sunt necesare:
+	- alarm
+	- wait
+	- ulimit
+	- nice
+	- signal
+	- init
+	- times
+
+- setitimer() nu verifica daca intervalul sau value sunt prea mari
+(daca depasesc posibilitatea de reprezentare a unui unsigned).
+
+- Prototipul lui read_header n-are ce cauta in mm.h. Poate ca
+startinit ar trebui sa fie pus in exec.c. Sunt asemanatoare.  Oricum,
+planuiesc sa trec la ELF, asa ca se vor schimba multe.
+
+- La fork() nu se mostenesc alarmele.  Nu m-am uitat daca trebuie sau nu.
+
+- De verificat daca toate atributele care se schimba sau pastreaza la
+fork/exec sunt tratate conform info glibc.
+
+- Nu se poate sa am urmatoarea declaratie globala: FILE *msg_file =
+stdout; Tipa gcc-ul ca stdout nu e constanta. E treaba de headere dar
+nu ma prind exact ce ar trebui sa fac.  Neimportant, oricum biblioteca
+de C trebuie reportata.
+
+- Rutinele legate de utmp/wtmp nu functioneaza. Probabil ca login-ul
+nu scrie cum trebuie informatiile acolo.
+
+- root_device si root_inode trebuie declarate extern in fs.h
+
+- Biblioteca de C incearca sa deschida fisierul:
+/home/tudor/thix/usr/local/etc/localtime.
+
+- sbrk() sa nu apeleze tot timpul brk(0) ca sa afle brk-ul curent.  Ar
+fi mai eficient sa tina minte ultimul raspuns.  Neimportant acum.
+
+- De adaugat in gitrc.thix F11 si F12.
+
+- De estimat in exec() daca e cazul sa pornesc procesul sau sa dau out
+of memory.  Oricum, chestia asta e o abureala, ar trebui sa ma pot
+prinde intr-un mod inteligent.
+
+- Acolo unde vm_alloc poate intoarce NULL trebuie reincercat, nu se cade
+sa intorci ENOMEM din prima. Vezi sys_exec() (read_header()).
+
+- De facut un ps ca lumea (cu getopt).
+
+- N-am putea pune i_zero in aia 2K ramasi liberi din cauza lui
+fdc_buf?  Economisesc 2K :-)
+
+- Care-s adevaratele semnificatii ale lui ru_minflt, ru_nswap,
+ru_nsignal, ru_*rss ?
+
+- De verificat/setat limitele din rlimit.
+
+- Numarul de inoduri in core ar trebui sa fie egal cu numarul de
+SYSTEM_OPEN_MAX, ca sa nu apar probleme la open() in cazuri limita.
+Pentru asta insa ar trebui alocate cumva dinamic.
+
+- Switch la ELF.
+
+- a.out.h e varza.  Sper sa scap de el asap.
+
+- findutils crapa toate !!!
+
+- De facut less sa mearga (probabil ca va trebui biblioteca de ncurses).
+
+- De facut sa booteze de pe device-ul curent.
+
+- De pus inapoi testul cu 0x1020 in read_header si de verificat ca merg
+toate.
+
+- De terminat treaba cu s_state.
+
+- kmem ar trebui sa intoarca eroare acolo unde memoria nu este mapata,
+altminteri procesul va primi un SIGSEGV.  Neimportant acum, oricum nu
+foloseste nimeni mem/kmem, le-am scris doar pentru compatibilitate !?.
+
+- Se intampla uneori sa se panicheze cu got kpid=....  De exemplu daca
+pornesc multe git-uri unul din altul si la sfarsit tin apasat pe F10.
+Porcaria mare e ca nu e usor reproductibil :-(
+
+- Pentru tfs: TFS_VERSION_MAJOR TFS_VERSION_MINOR TFS_PATCHLEVEL
+
+- Nu cred ca mai e nevoie de work_set.
+
+- sigend ar trebui sa aiba grija sa nu stearga semnalele care au venit
+intre timp.
+
+- Cand voi trece la ELF, sa fiu atent sa scot toate prostiile cu 1 +
+...->text_pages
+
+- Toate modulele/driverele din kernel trebuie sa faca register cu o
+functie pe care vor s-o execute la reboot.  Astfel se va putea scapa
+de porcaria din reboot.
+
+- Peste tot prin drivere de pus variabile volatile unde e cazul.
+
+- Cand scriu pe intreruperi, trebuie sa am grija ca printk-ul sa fie
+executat cu intreruperile dezactivate.  Din nefericire asta nu e chiar
+asa de usor, pentru ca dupa printk trebuie sa restaurez starea
+anterioara a intreruperilor (activate sau nu).  Evident, e nevoie de
+ceva asamblare aici (pushfl, cli ... popfl).  De evitata pe cat
+posibil scrierea de mesaje pe ecran in intreruperi.  Daca totusi e
+necesar, trebuie folosita o rutina care sa nu aiba cum sa doarma. Nu
+se poate dormi in intreruperi. printk() e inadecvata pt. ca poate fi
+"trimisa la culcare" de Pause sau Scroll-Lock, care pot fi apasate
+inainte de intrerupere, candva cand intreruperile sunt activate.  S-ar
+putea rezolva oarecum asta, ignorand flagul setat de Pause sau
+ScrollLock daca printk() a fost activat pe intrerupere.
+
+- Cand e foarte incarcat sistemul se pierd intreruperi de la
+tastatura.  Habar n-am de ce.  Trebuie sa ma uit.  Poate ca stau prea
+mult cu intreruperile dezactivate...
+
+- KLOG: se pierd mesaje din cauza faptului ca procesul ce citeste de
+la /dev/klog trebuie sa termine de citit tot bufferul inainte ca alt
+proces sa poata scrie ceva acolo (asta dupa ce buferul s-a umplut).
+Implementarea e stupida!!!!
+
+- Cand este pornit un executabil, trebuie actualizate campurile din
+inod ?
+
+- De facut vmstat ca lumea.  Sa afiseze si bufferele ocupate.  Din
+nefericire asta va duce la modificarea bibliotecii de C.
+
+- Alarmele nu merg de nici o culoare.  /bin/update face cateva
+sync-uri dupa care se plictiseste. ... Acum e mai bine, s-ar putea sa
+fi fost din cauza bug-ului din fork().
+
+- Nu stiu de ce o ia in balarii cand apelez _exit in crt0.s in loc de
+__exit.  Este din cauza faptului ca nu se initializeaza cum trebuie
+biblioteca de C, dar nu stiu inca cum sa fac asta.
+
+- Testul 28 (ENAMETOOLONG) nu e ok.
+
+- De facut sa se poata modifica usor root-fs in kernel (din afara, cu
+un utilitar).
+
+- Poate ca bufferele ar trebui inserate intr-o lista de cereri a
+device-ului sortat (alg. lift).
+
+- Daca nu exista fgrep si egrep sa fie facute scripturi care sa
+apeleze grep (cu -E, -F).
+
+- De facut pe PrintScreen sau alta combinatie smechera de taste sa
+raporteze chestii de genul Nr. total de page cache hits si buffers
+hits.
+
+- Se intampla un lucru ciudat.  Daca decomprim mai multe fisiere mari
+intr-un director si dupa aia ii dau sync sta foarte mult la sync.  Nu
+se intampla nimic rau, adica file system-ul ramane consistent, dar e
+ciudat.  Cred ca treaba asta se intampla din cauza absentei unui
+algoritm suficient de inteligent la flush().  Se grupeaza cererile
+contigue dar cam atat.  Algoritmul liftului, sortare ceva ?
+
+- O idee misto din Lites: Pe un debug level sa-ti arate doar apelurile
+system care intorc eroare.
+
+- O_CREAT nu implica si O_WRONLY.  De verificat ca si thix-ul face la
+fel.
+
+- ktime trebuie implementat cu ticks, nu cu seconds.  Chiar si asa, la
+reboot, valorile lui ktime vor fi de la o bootare anterioara.  Asta ar
+putea duce la stergerea cache-ului la pornirea unui executabil.  In
+mod normal asa ar trebui sa se intample, dar vreau sa ma scot ceva mai
+bine :-).  Poate ca as putea cumva sa sterg doar paginile
+executabilului cu pricina, desi nu prea cred.  Cel mai bun lucru ar fi
+sa sterg cache-ul de fiecare data...  Sau cand se modifica data cu
+stime sa sterg cache-ul.
+
+- more sa nu mai crape daca TERM nu e setat.
+
+- Nu imi mai aduc aminte, dar parca mai erau niste secvente
+specificate de ANSI pe care eu nu le-am folosit in git.  De verificat
+si implementat :-).
+
+- Numarul inodului ar trebui pus pe 32 biti, nu pe 16.  Pentru file
+system-uri mari s-ar putea sa nu fie de ajuns.  Ma refer la campurile
+hnext si hprev, lnext si lprev din structurica `inode'.
+
+- Problema aia enervanta din biblioteca de C face ca toate programele
+care apeleaza exit() sa crape.  _exit() merge ok.  Trebuie neaparat sa
+recompilez o versiune mai noua de glibc si sa rezolv o data pentru
+totdeauna aceasta problema.
+
+- u_area se poate aloca dinamic cu vm_static_alloc ?
+
+- 0xFFFF-ul din mm.c trebuie inlocuit cu o constanta.
+
+- Sectorul de boot trebuie sa se prinda ca a fost specificata o
+partitie care nu contine kernel de thix.  Nu are voie sa incarce
+orbeste.
+
+- De pus clear_path()-ul din git.  Nu e absolut necesar deocamdata...
+
+- De ce nu merge tail -f /dev/klog ?  Din cauza alarmelor ?  Ar trebui
+sa-i vina o data pe secunda.  Ce se intampla ?
+
+- De reportat biblioteca de C.
+
+- De implementat select().
+
+- De activat mai des intreruperile.
+
+- De facut un canal de comunicatie bidirectional pentru X windows.
+
+- De facut un ioctl cu care sa se poata pune tastatura in mod raw (sa
+intoarca direct scan coduri).
+
+- De rezolvat problema cu tastatura pe calculatoarele de la Neuron.
+
+- De scris despre lp driver in texinfo.
+

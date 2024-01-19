@@ -1,0 +1,25 @@
+/*
+ *   reboot() e o functie foarte delicata. Ea are datoria sa distruga toate
+ * procesele (sau macar sa incerce) si apoi sa opreasca	 sistemul. Treaba e
+ * destul de complicata pentru pot foarte usor exista procese ce nu pot	 fi
+ * oprite nici macar de SIGKILL. Un  proces  care executa un apel sistem de
+ * forma write(handle, buf, 2000000000) (scrie aproape 2Gb pe disc) este un
+ * bun exemplu. Acest proces nu se va termina  nici la	SIGTERM	 si nici la
+ * SIGKILL deci inodul directorului sau curent, si al  radacinii  (daca s-a
+ * efectuat un chroot()) nu vor putea fi eliberate in maniera obisnuita.
+ *   reboot() va incerca sa opreasca tot ce poate folosind semnale (SIGTERM
+ * va fi trimis mai intai  pentru ca procesele care capteza acest semnal sa
+ * fie anuntate ca vor fi distruse), apoi va opri  fortat  toate  procesele
+ * scotandu-le din lista scheduler-ului si va debloca  "cu mana"  inodurile
+ * si buffer-ele care au ramas busy datorita unor  procese  "tembele" (evi-
+ * dent ca inainte de a face deblocarea manuala reboot()  va dealoca corect
+ * inodul directorului curent si al directorului radacina al procesului cu-
+ * rent pentru ca acesta nu va executa niciodata exit() si deci nu va putea
+ * sa faca treaba asta altfel. Acelasi lucru il va face si pentru INIT care
+ * nu are voie sa execute exit()).
+ *   Inainte de trimiterea lui SIGTERM trebuie oprit INIT pentru ca  altfel
+ * va continua sa creeze copii pe masura ce vede ca ii mor.
+ *   Pentru toate procesele care nu au vrut sa iasa la semnale trebuie	in-
+ * chise toate fisierele.
+ */
+

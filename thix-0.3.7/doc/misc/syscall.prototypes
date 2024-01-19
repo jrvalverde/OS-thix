@@ -1,0 +1,110 @@
+#ifndef _THIX_SYSCALL_H
+#define _THIX_SYSCALL_H
+
+
+/*
+ *	System calls.
+ */
+
+int sys_fork(void);						   /* 00 */
+int sys_exec(const char *__filename, char *const __argv[],
+				     char *const __envp[]);	   /* 01 */
+int sys_ustat(dev_t __dev, struct ustat *__ubuf);		   /* 02 */
+int sys_utime(const char *__filename,
+	      const struct utimbuf *__times);			   /* 03 */
+int sys_getpid(void);						   /* 04 */
+int sys_brk(void *__end_data_segment);				   /* 05 */
+int sys_getppid(void);						   /* 06 */
+int sys_exit(int __status);					   /* 07 */
+int sys_umask(mode_t __mask);					   /* 08 */
+int sys_fcntl(int __fd, int __cmd, ...);			   /* 09 */
+int sys_signal(int __sig, __sighandler_t __handler);		   /* 10 */
+int sys_kill(pid_t __pid, int __sig);				   /* 11 */
+int sys_wait(int *__wait_stat);					   /* 12 */
+int sys_pause(void);						   /* 13 */
+int sys_nice(int __priority);					   /* 14 */
+int sys_ulimit(int __cmd, unsigned __limit);			   /* 15 */
+int sys_uname(struct utsname *__uname);				   /* 16 */
+int sys_stime(time_t *__when);					   /* 17 */
+int sys_time(time_t *__timer);					   /* 18 */
+int sys_times(struct tms *__tmsptr);				   /* 19 */
+int sys_alarm(unsigned int __seconds);				   /* 20 */
+int sys_sync(void);						   /* 21 */
+int sys_chmod(const char *__filename, mode_t __mode);		   /* 22 */
+int sys_open(const char *__filename, int __flags, mode_t __mode);  /* 23 */
+int sys_close(int __fildes);					   /* 24 */
+int sys_link(const char *__from, const char *__to);		   /* 25 */
+int sys_unlink(const char *__filename);				   /* 26 */
+int sys_mkdir(const char *__dirname, mode_t mode);		   /* 27 */
+int sys_chdir(const char *__newdirname);			   /* 28 */
+int sys_init(void);						   /* 29 */
+int sys_readdir(int __fd, struct dirent *__dirent, size_t __cnt);  /* 30 */
+int sys_rmdir(const char *__dirname);				   /* 31 */
+int sys_reboot(int options);					   /* 32 */
+int sys_lseek(int __fd, off_t __offset, int __whence);		   /* 33 */
+int sys_read(int __fd, char *__buf, size_t __cnt);		   /* 34 */
+int sys_write(int __fd, const char *__buf, size_t __cnt);	   /* 35 */
+int sys_dup(int __fd);						   /* 36 */
+int sys_stat(const char *__filename, struct stat *__statbuf);	   /* 37 */
+int sys_fstat(int __fd, struct stat *__statbuf);		   /* 38 */
+int sys_dup2(int __fd, int __fd2);				   /* 39 */
+int sys_mknod(const char *__filename, mode_t __mode,
+				      dev_t __dev_Mn);		   /* 40 */
+int sys_pipe(int *__fd);					   /* 41 */
+int sys_setuid(uid_t __uid);					   /* 42 */
+int sys_setgid(gid_t __gid);					   /* 43 */
+int sys_getuid(void);						   /* 44 */
+int sys_geteuid(void);						   /* 45 */
+int sys_getgid(void);						   /* 46 */
+int sys_getegid(void);						   /* 47 */
+int sys_sigpending(__sigset_t *__set);				   /* 48 */
+int sys_sigprocmask(int __how, const __sigset_t *__set,
+			       __sigset_t *__oset);		   /* 49 */
+int sys_sigsuspend(const __sigset_t *__set);			   /* 50 */
+int sys_sigaction(int __sig, const struct sigaction *__act,
+			     struct sigaction *__oact);		   /* 51 */
+int sys_chown(const char *__filename,
+	      uid_t __owner, gid_t __group);			   /* 52 */
+int sys_access(const char *__filename, int __mode);		   /* 53 */
+int sys_getprocinfo(int __iprocess, struct procinfo *__pi);	   /* 54 */
+int sys_getsysinfo(struct sysinfo *__si);			   /* 55 */
+int sys_ioctl(int __fd, int __cmd, void *__argp);		   /* 56 */
+int sys_tcsendbreak(int __fd, int __duration);			   /* 57 */
+int sys_tcdrain(int __fd);					   /* 58 */
+int sys_tcflush(int __fd, int __queue);				   /* 59 */
+int sys_tcflow(int __fd, int __action);				   /* 60 */
+int sys_tcgetattr(int __fd, struct termios *__termios_p);	   /* 61 */
+int sys_tcsetattr(int __fd, int __when,
+		  const struct termios *__termios_p);		   /* 62 */
+int sys_getitimer(int __which, struct itimerval *__old);	   /* 63 */
+int sys_setitimer(int __which, struct itimerval *__old,
+			       struct itimerval *__new);	   /* 64 */
+int sys_getrlimit(int __resource, struct rlimit *__rlp);	   /* 65 */
+int sys_setrlimit(int __resource, struct rlimit *__rlp);	   /* 66 */
+int sys_getrusage(int __who, struct rusage *__usage);		   /* 67 */
+int sys_getpriority(int __which, int __who);			   /* 68 */
+int sys_setpriority(int __which, int __who, int __priority);	   /* 69 */
+int sys_mount(const char *__device_name, const char *__directory,
+	      int __options);					   /* 70 */
+int sys_umount(const char *__device_name);			   /* 71 */
+int sys_waitpid(pid_t __pid, int *__status, int __options);	   /* 72 */
+int sys_setsid(void);						   /* 73 */
+int sys_setpgid(pid_t __pid, pid_t __pgid);			   /* 74 */
+int sys_getpgrp(void);						   /* 75 */
+int sys_swapon(const char *__device_name);			   /* 76 */
+int sys_swapoff(const char *__device_name);			   /* 77 */
+/* int sys_select( __ *** not yet available *** __ );*/		   /* 78 */
+int sys_readlink(const char *__filename, char *__buffer,
+		 size_t __size);				   /* 79 */
+int sys_chroot(const char *__path);				   /* 80 */
+int sys_truncate(const char *__filename, size_t __length);	   /* 81 */
+int sys_lstat(const char *__filename, struct stat *__buffer);	   /* 82 */
+int sys_symlink(const char *__oldname, const char *__newname);	   /* 83 */
+int sys_sethostname(const char *__name, size_t __length);	   /* 84 */
+int sys_setdomainname(const char *__name, size_t __length);	   /* 85 */
+int sys_ftruncate(int __fd, size_t __length);			   /* 86 */
+int sys_fchown(int __fd, uid_t __owner, gid_t __group);		   /* 87 */
+int sys_fchmod(int __fd, mode_t __mode);			   /* 88 */
+
+
+#endif	/* thix/syscall.h */

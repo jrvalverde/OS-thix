@@ -1,0 +1,6 @@
+WARNING:
+
+floppy/boot.S and harddisk/boot.S should become a single file one day
+and should be able to autodetect the boot media.  Untill then, use them
+with great care and only if you are sure that you know what you are
+doing.

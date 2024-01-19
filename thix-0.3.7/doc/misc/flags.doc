@@ -1,0 +1,94 @@
+Flaguri pentru registrii de control CR0 la CR4:
+
+CR0:
+ 31 30 29                    18 17 16                   5  4  3  2  1  0
+--------------------------------------------------------------------------
+|PG|CD|NW|     rezervati    |AM|re|WP|    rezervati    |NE|ET|TS|EM|MP|PE|
+--------------------------------------------------------------------------
+
+
+TS, EM, MP si PE --- aceasi semnificatie ca la 286.
+
+PE - protection enable - trece in mod protejat.
+MP - monitor coprocessor - daca e setat, o instructiune WAIT poate genera
+	o exceptie 'no coprocessor available', care duce la intreruperea 7.
+	La Pentium, acest bit trebuie setat.
+EM - emulate coprocessor - la Pentium acest bit trebuie resetat, deoarece
+	unitatea de virgula flotanta este incorporata si nu trebuie emulata.
+TS - task switch - setat daca a aparut un switchde task; in modul protejat,
+	asta inseamna ca Pentiumul a intrat intr-un task gate cel putin o data.
+	Important pentru a determina daca coprocesorul mai lucreaza la o
+	instructiune aditionala a vechiului task, sau daca a inceput deja
+	lucrul la noul task.
+ET - extension type - la 486 intotdeauna 1 (la fel si la Pentium). Indica 
+	faptul ca sunt suportate instructiunile coprocesorului (Nota mea:
+	indica oare ca e un DX?)
+NE - numeric error - controleaza comportamentul Pentiumului atunci cand apare
+	o exceptie numerica. Daca bitul este setat, exceptia este servita prin
+	intreruperea 16 (Pentiumul genereaza o intrerupere 16). Acesta este
+	procedura standard pentru Pentium. Daca bitul este resetat, exceptia
+	se trateaza de catre un handler hardware de intrerupere extern [ :-) ]
+	datorita necesitatii de compatibilitate cu alte sisteme PC. In acest
+	scop sunt folosite 2 semnale IGNNE si FERR. In PC, FERR este echivalent
+	cu IRQ13, deci se genereaza o intrerupere 75h.
+WP - write protect - (Nota mea: in documentatie zice ca "... in the 386 such
+	read-only pages can, in principle, be overwritten." :-) Deci: It's not
+	a bug, it's a feature.... ) Protejeaza paginile read-only la scriere
+	de catre supervizorul aflat in nivelele 0-2. Mecanismul de protectie
+	protejeaza doar segmente complete, nu si bucati din el.
+AM - alignment mask (80486) - Prin bitul AM se poate determina daca bitul AC
+	din registrul EFlag poate genera o exceptie de aliniere si intreruperea
+	corespunzatoare (17). Bitul AM setat permite exceptiile, resetat 
+	mascheaza flagul AC. AM are prioritate mai mare decat AC. Exceptiile
+	de aliniere se genereaza doar pentru CPL=3, pentru restul se ignora.
+NW - not write-through (i486) - Controleaza cache-ul de pe chip. Resetat -
+	cache-ul este write-through. Setat - cache write-back.
+CD - cache disable (i486) - Daca bitul este setat, nu se mai face refill in
+	cache, desi mai pot apare hit-uri. Pentru dezactivare completa cache,
+	trebuie setat CD si invalidat cache-ul.
+PG - paging enable (i386) - Setat - activeaza, resetat - dezactiveaza PU din
+	unitatea MMU a procesorului --> adrese liniare.
+
+
+CR1:
+rezervat, actualmente fara utilizare.
+
+
+CR2:
+dupa un page fault, registrul de control contine adresa lineara a instructiunii
+care a cauzat eroarea.
+
+CR3:
+Cand paginarea este activa, aici se stocheaza cei mai semnificativi 20 de biti
+ai adresei de lista de pagini, adica tabela paginilor de nivel intai. In plus,
+PCD (bitul 4) si PWT (bitul 3) sunt folositi pentru cache de lista de pagini 
+(1 dezactivat/0 activat), respectiv write-through pentru lista de pagini
+(1 write-through/0 write-back).
+
+CR4: (nou introdus in Pentium)
+ 31                                          7   6   5   4  3   2  1    0
+---------------------------------------------------------------------------
+|                rezervati                     |MCE|rez|PSE|DE|TSD|PVI|VME|
+---------------------------------------------------------------------------
+
+VME - virtual 8086 mode extension - setat, bitul permite suportul pentru
+	flaguri de intrerupere virtuali; in felul acesta intreruperile sunt
+	executate mai rapid. Monitorul de mod virtual 8086 nu mai este necesar.
+PVI - protected mode virtual interrupts - in mod protejat, PVI are acelasi
+	scop ca si VME in mod virtual. In acest mod, programe care au fost
+	construite pentru a fi executate in modul CPL=0 pot fi executate, in
+	anumite conditii, cu CPL=3. In particular, CLI si STI nu mai trimit
+	exceptia 0dh, ci schimba doar flagul VIF din EFlag, si nu flagul IE,
+	care acum determina raspunsul Pentiumului la cererile hardware de
+	intrerupere externa.
+TSD - time stamp disable - prin setarea bitului, instructiunea RDTSC de
+	citire a "time stamp"-ului devine instructiune privilegiata, care poate
+	fi executata doar cu CPL=0.
+DE - debugging extension - pentru acoperirea spatiului de adrese I/O cu
+	breakpointeri se seteaza bitul la valoarea 1. Din acel moment Pentium-
+	ul interpreteaza combinatia 10b pentru bitii R/W (invalida la 386/486)
+	ca pe un breakpointer pentru acces citire/scriere I/O.
+PSE - page size extension - cu ajutorul lui PSE se poate stabili dimensiunea
+	paginii care va fi intretinuta de PU. Bitul setat stabileste pagina
+	la 4Mb, resetat la 4kb.
+MCE - machine check enable.

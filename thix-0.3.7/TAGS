@@ -1,0 +1,1692 @@
+
+vm/mm.c,749
+#define PG_BUCKETS_NO 70,1907
+pg_list_insert(94,2470
+pg_list_delete(109,2704
+pg_hash_insert(124,3022
+pg_hash_delete(141,3350
+pg_hash_search(158,3672
+pg_init(176,4030
+get_page(198,4502
+release_page(248,5255
+reuse_page(266,5679
+clear_free_list(325,8930
+reserve_pages(349,9312
+block_is_loading(367,9597
+vm_static_alloc(388,10095
+u_area_init(423,11011
+bss_init(456,12070
+vm_init(469,12379
+page_protection_fault(657,19585
+page_not_present_fault(732,21098
+page_fault(917,25401
+delete_page(1014,28470
+release_memory(1045,29198
+sys_brk(1175,32383
+string_end_found(1205,32902
+pointer_list_end_found(1220,33156
+ok_to_read_area(1237,33521
+ok_to_write_area(1263,34221
+ok_to_read_string(1311,35611
+ok_to_read_pointer_list(1341,36316
+
+vm/swap.c,315
+get_sd(76,1939
+release_sd(101,2388
+swap_init(117,2609
+work_set_insert(152,3491
+page_in_work_set(167,3820
+get_swap_block(190,4500
+release_swap_block(247,5554
+swap_page(263,5852
+load_page(284,6150
+save_page(332,7228
+swapper(361,7882
+sys_swapon(614,13719
+sys_swapoff(697,15487
+initialize_pgtbl(709,15626
+
+vm/vmalloc.c,110
+vm_alloc_init(55,1867
+vm_alloc_insert(66,2035
+vm_alloc_delete(81,2320
+vm_alloc(102,2855
+vm_free(170,4660
+
+vm/vmdev.c,63
+get_vmdev(53,2051
+release_vmdev(84,2678
+vmdev_init(101,2970
+
+kernel/exec.c,111
+struct ae_dataae_data44,1333
+add_ae_data(63,1684
+ae_setup(97,2368
+read_header(220,5737
+sys_exec(263,6752
+
+kernel/exit.c,93
+release_zombie(44,1390
+pick_zombie(70,1966
+currently_executing(92,2380
+sys_exit(124,3168
+
+kernel/fork.c,18
+sys_fork(52,1497
+
+kernel/init.c,19
+startinit(53,1485
+
+kernel/irq.c,145
+#define ERR_BADIRQ 29,937
+#define ERR_BADUNREG 30,970
+#define MAX_IRQ 39,1111
+irq_register(50,1291
+irq_unregister(69,1511
+irq_init(82,1740
+
+kernel/kpid.c,60
+get_kpid(51,1509
+release_kpid(81,2130
+kpid_init(105,2512
+
+kernel/main.c,33
+sys_kctrl(45,1402
+main(83,2142
+
+kernel/process.c,288
+find_unused_pid(45,1210
+process_debug_info(74,1902
+sys_getpid(93,2280
+sys_getppid(104,2400
+sys_setuid(116,2609
+sys_setgid(135,2980
+sys_getuid(153,3252
+sys_getgid(164,3362
+sys_geteuid(175,3476
+sys_getegid(186,3592
+sys_setsid(198,3760
+sys_setpgid(217,4021
+sys_getpgrp(254,4552
+
+kernel/reboot.c,83
+stop_process(48,1287
+stop_all(68,1752
+destroy_all(101,2524
+sys_reboot(126,3157
+
+kernel/resource.c,91
+sys_getrlimit(42,1191
+sys_setrlimit(72,1786
+sys_getrusage(113,2584
+add_rusage(161,3451
+
+kernel/sched.c,711
+leap(67,1812
+get_CMOS_time(79,2061
+sys_stime(122,3218
+sys_time(183,4591
+sys_times(209,5018
+itimer_ok(234,5539
+timeval2int(250,5897
+int2timeval(261,6053
+itimerval2_itimerval(275,6364
+_itimerval2itimerval(287,6636
+set_alarm(299,6883
+reset_alarm(341,7625
+sys_alarm(375,8104
+sys_getitimer(387,8311
+sys_setitimer(432,9086
+lost_ticks(486,10145
+timer_init(497,10287
+scheduler_data_init(510,10579
+scheduler_init(524,10898
+scheduler_debug_info(545,11263
+new_schedulable_process(575,11845
+delete_schedulable_process(596,12323
+restore_schedulable_process(613,12694
+register_timer(629,13027
+timer(651,13422
+scheduler(741,15390
+sys_getpriority(854,18662
+sys_setpriority(905,19616
+idle(977,20896
+
+kernel/semaphore.c,26
+down(69,2789
+up(93,3594
+
+kernel/signal.c,382
+issig(40,1189
+__issig(127,3510
+sys_sigend(156,4181
+sys_signal(168,4320
+can_kill_kpid(182,4637
+kill_kpid(195,4859
+kill_pid(227,5732
+kill_pgrp(253,6213
+kill_all(283,6889
+search_pid(315,7467
+sys_kill(344,8141
+sys_pause(381,8825
+sys_wait(408,9218
+sys_waitpid(421,9426
+sys_sigpending(489,11100
+sys_sigprocmask(506,11372
+sys_sigsuspend(545,12327
+sys_sigaction(571,12827
+
+kernel/sleep.c,218
+#define ERR_BADWAKEUP 33,1045
+#define SLEEP_BUCKETS 41,1172
+} SLEEP;SLEEP48,1268
+sleep_init(80,2530
+sleep(101,3400
+wakeup(162,5051
+wakeup_process(198,6129
+wakeup_one_process(233,7098
+wakeup_and_kill(263,7718
+
+kernel/system.c,147
+sys_uname(58,1709
+sys_sethostname(96,2493
+sys_setdomainname(120,2848
+show_sys_info(144,3244
+sys_getprocinfo(170,3851
+sys_getsysinfo(215,5174
+
+fs/block.c,74
+sb_f_lock(40,1212
+sb_f_unlock(58,1508
+b_alloc(75,1718
+b_free(118,2522
+
+fs/buffer.c,708
+#define BUF_DEDICATED_PAGES 37,1153
+#define FLUSH_ALL_BUFFERS 38,1196
+bufpg_list_insert(57,1485
+bufpg_list_delete(72,1754
+buf_get_page(85,1997
+buf_release_page(102,2160
+buf_master_list_insert(118,2429
+buf_master_list_delete(133,2736
+buf_list_insert_head(149,3227
+buf_list_insert_tail(166,3645
+buf_list_delete(180,3933
+buf_hash_insert(193,4192
+buf_hash_delete(211,4577
+buf_hash_search(227,4897
+buf_update_mem(248,5468
+buf_update(290,6444
+buf_remove(308,6920
+buf_read(338,7695
+_buf_read(372,8470
+buf_write(405,9204
+buf_flush(430,10237
+buf_get(538,12817
+buf_release(628,14913
+buf_shrink(655,15470
+buf_sync_device(671,15867
+buf_sync(731,17816
+buf_cleanup(767,18498
+buf_init(790,18873
+
+fs/cluster.c,159
+count_bitmap(66,2175
+get_bitmap_resource(94,2697
+release_bitmap_resource(116,3074
+flush_cluster(127,3258
+switch_cluster(165,4009
+search_cluster(236,5634
+
+fs/device.c,280
+can_close_device(48,1354
+blk_open(67,1628
+blk_close(81,1800
+blk_read(101,2065
+blk_write(209,4590
+blk_ioctl(263,5736
+blk_lseek(270,5848
+chr_open(281,5988
+chr_close(314,6714
+chr_read(331,6929
+chr_write(355,7377
+chr_ioctl(379,7823
+chr_lseek(386,7935
+sys_mknod(397,8075
+
+fs/dir.c,240
+dir_open(46,1297
+dir_close(58,1392
+dir_read(69,1515
+dir_write(80,1659
+find_empty_dir_slot(91,1777
+setup_directory_entry(131,2534
+is_dir_empty(166,3256
+sys_mkdir(206,3999
+sys_rmdir(278,5557
+sys_chdir(362,7104
+sys_readdir(403,7704
+
+fs/driver.c,573
+#define ERR_NODEV 33,1049
+#define ERR_BADDRV 34,1082
+#define ERR_ISREG 35,1115
+#define ERR_NOIRQ 36,1148
+#define ERR_BADMAJ 37,1181
+#define ERR_NOTIMER 38,1214
+#define MAX_BLKDEV_REQUESTS 52,1523
+display_driver_info(67,1715
+registered(84,2193
+is_block_device(95,2367
+get_minors(110,2634
+register_driver(124,2829
+check_device(163,3483
+get_minor_info(176,3657
+set_minor_info(183,3755
+drv_open(194,3926
+drv_close(211,4216
+drv_read(232,4673
+drv_write(264,5349
+drv_sync(300,6062
+drv_ioctl(318,6339
+drv_fcntl(337,6724
+drv_lseek(356,7089
+drv_init(375,7461
+
+fs/generic.c,975
+get_fd(62,1647
+release_fd(82,1880
+get_ufd(100,2132
+release_ufd(121,2437
+is_close_on_exec(135,2625
+close_on_exec(146,2801
+io_blocks(156,2978
+path_bad(181,3432
+permitted(201,3669
+sys_open(238,4314
+sys_close(435,8249
+sys_read(475,8958
+sys_write(569,11038
+sys_lseek(655,12661
+sys_dup(707,13728
+sys_dup2(731,14010
+sys_link(757,14341
+sys_unlink(856,16091
+inode2stat(920,17280
+sys_stat(954,18173
+sys_fstat(983,18580
+sys_lstat(1005,18917
+sys_ustat(1017,19123
+sb2statfs(1055,19813
+sys_statfs(1075,20399
+sys_fstatfs(1103,20867
+sys_utime(1125,21236
+sys_umask(1177,22132
+sys_fcntl(1194,22320
+sys_access(1257,23413
+do_chmod(1290,23903
+sys_chmod(1310,24211
+sys_fchmod(1335,24509
+do_chown(1346,24669
+sys_chown(1373,25214
+sys_fchown(1398,25546
+sys_truncate(1413,25779
+sys_ftruncate(1449,26242
+sys_symlink(1475,26621
+sys_readlink(1487,26791
+sys_chroot(1499,26995
+sys_ioctl(1511,27140
+sys_select(1560,27993
+fs_cleanup(1573,28214
+fs_init(1623,29440
+
+fs/inode.c,1059
+#define ERR_BADLVL 41,1217
+#define ERR_BADROOT 42,1258
+#define ERR_HOLEINDIR 43,1299
+#define BLOCKS_PER_IBLOCK 58,1568
+#define iBLOCK(iBLOCK65,1688
+#define iOFFSET(iOFFSET75,2146
+#define MAX_FS_BLOCK 104,2895
+i_list_insert(114,3037
+i_list_delete(129,3286
+i_hash_insert(142,3519
+i_hash_delete(160,3870
+i_hash_search(176,4157
+i_read(194,4537
+i_write(216,4921
+sb_i_lock(237,5263
+sb_i_unlock(254,5476
+i_get(271,5682
+i_release(332,6712
+i_remove(367,7478
+i_alloc(381,7656
+i_free(444,8921
+i_lock(476,9505
+i_unlock(493,9712
+get_block_from_inode(510,9938
+put_block_to_inode(521,10136
+#define set_indirection_level(set_indirection_level529,10369
+free_dlevel(547,11260
+free_ilevel1(567,11644
+free_ilevel2(604,12386
+free_ilevel3(642,13264
+i_truncate(679,14159
+_bmap(763,16202
+bmap(846,18621
+rbmap(885,19787
+alloc_indirect_block(910,20252
+alloc_dlevel(932,20647
+alloc_ilevel(967,21362
+wbmap(1009,22240
+clear_path(1087,23797
+__namei(1137,24882
+namei(1363,30924
+namei_with_dir(1384,31318
+i_cleanup(1419,32005
+i_init(1442,32387
+
+fs/mount.c,565
+#define SBE_OK 70,1767
+#define SBE_CHECKSUM 71,1794
+#define SBE_MAGIC 72,1821
+#define SBE_BLKSZ 73,1848
+#define SBE_DIRENTSZ 74,1875
+#define SBW_BBLSZ 78,1932
+#define SBW_TINODE 79,1970
+#define SBW_TFREE 80,2008
+#define SBW_STRUCTURE 81,2046
+get_mp(102,2407
+release_mp(136,3054
+find_mp(152,3268
+check_superblock(183,3857
+get_superblock(264,6158
+update_superblock(326,7603
+release_superblock(375,8727
+fs_in_use(391,8996
+sys_mount(433,9753
+sys_umount(547,12058
+mount_root(630,13558
+umount_root(681,14826
+sys_sync(709,15390
+mount_init(741,15815
+
+fs/pipe.c,429
+#define pipe_check_readers(pipe_check_readers41,1190
+#define pipe_check_writers(pipe_check_writers52,1573
+#define pipe_lock(pipe_lock59,1770
+#define pipe_unlock(pipe_unlock60,1807
+#define pipe_size 63,1848
+#define pipe_readers 65,1899
+#define pipe_writers 66,1949
+#define pipe_roff 68,2000
+#define pipe_woff 69,2050
+pipe_open(77,2130
+pipe_close(119,2766
+pipe_read(150,3208
+pipe_write(217,4332
+sys_pipe(293,5850
+
+fs/regular.c,149
+currently_opened_for_write(43,1292
+regular_open(68,1789
+regular_close(86,2004
+regular_read(103,2245
+regular_write(236,4973
+a_out_read(297,6240
+
+lib/klib.c,294
+utoa(42,1212
+skip_zeros(79,1754
+putch(87,1826
+puts(100,2038
+printk(113,2263
+strcpy(182,3778
+strchr(190,3876
+delay(209,4238
+checksum(219,4354
+display_sys_info(232,4515
+panic_end(245,4696
+_reschedule(262,4992
+display_number(269,5039
+bad_system_call(280,5180
+bad_interrupt(293,5379
+
+driver/block/fdc.c,1637
+#define ERR_BADREQ 44,1262
+#define FLOPPY_OUTPUT 52,1345
+#define FLOPPY_CONTROLLER_ENABLE 54,1392
+#define FLOPPY_DMAINT_ENABLE 55,1437
+#define FLOPPY_STATUS 57,1483
+#define FLOPPY_CONTROLLER_BUSY 59,1530
+#define FLOPPY_DMA_MODE 60,1575
+#define FLOPPY_DIRECTION 61,1620
+#define FLOPPY_MASTER 62,1665
+#define FLOPPY_NEW_BYTE 63,1710
+#define FLOPPY_COMMAND 67,1844
+#define FLOPPY_READ 69,1891
+#define FLOPPY_WRITE 70,1936
+#define FLOPPY_FORMAT 71,1981
+#define FLOPPY_RECALIBRATE 72,2026
+#define FLOPPY_SEEK 73,2071
+#define FLOPPY_SENSE 74,2116
+#define FLOPPY_SPECIFY 75,2161
+#define FLOPPY_RATE 77,2207
+#define FLOPPY_INPUT 78,2253
+#define FLOPPY_CHANGE_LINE 80,2300
+#define FLOPPY_CHANNEL 81,2345
+#define FLOPPY_DTL 82,2390
+#define FLOPPY_SPEC2 84,2436
+#define MAX_FLOPPY_RESULTS 86,2482
+#define MAX_FLOPPY_ERRORS 87,2527
+#define FLOPPY_TYPES 89,2573
+#define TEST_BITS 91,2619
+#define SEEK_OK 92,2664
+#define TRANSFER_OK 93,2709
+#define WRITE_PROTECTED 94,2754
+#define INVALID_TRACK 96,2800
+#define FDC_BLKSZ 98,2844
+#define MAX_FDCS	100,2875
+} struct_fdd_type;struct_fdd_type126,3323
+} struct_fdd;struct_fdd136,3450
+dma_init(222,4926
+fdc_surprise(241,5467
+fdc_interrupt(255,5716
+fdc_start_motor(268,5881
+fdc_stop_motor(283,6218
+fdc_timer(299,6538
+wait_fdc_interrupt(319,6888
+fdc_getresults(340,7205
+fdc_out(368,7778
+fdc_mode(387,8143
+fdc_reset(397,8331
+fdc_recalibrate(427,8932
+fdc_seek(465,9607
+fdc_transfer(511,10331
+fdc_command(570,11732
+fdc_open(610,12497
+fdc_close(637,12981
+fdc_read(662,13433
+fdc_write(746,15666
+fdc_ioctl(824,17788
+fdc_lseek(845,18168
+fdc_init(860,18428
+
+driver/block/hdc.c,1915
+#define ERR_BADREQ 40,1220
+#define HDPORT_DATA 48,1303
+#define HDPORT_ERROR 49,1333
+#define HDPORT_WPCOMP 50,1378
+#define HDPORT_SECTORS 51,1424
+#define HDPORT_SECTOR 52,1454
+#define HDPORT_LOWCYL 53,1484
+#define HDPORT_HICYL 54,1514
+#define HDPORT_DRVHD 55,1544
+#define HDPORT_CMD 56,1574
+#define HDPORT_STATUS 57,1620
+#define HDCTRL_NOMARK 60,1667
+#define HDCTRL_BADTRK0 61,1696
+#define HDCTRL_CMDABORT 62,1725
+#define HDCTRL_BADID 63,1754
+#define HDCTRL_BADECC 64,1783
+#define HDCTRL_BADBLK 65,1812
+#define HDCMD_RESTORE 68,1843
+#define HDCMD_READ 69,1872
+#define HDCMD_WRITE 70,1901
+#define HDCMD_VERIFY 71,1930
+#define HDCMD_FORMAT 72,1959
+#define HDCMD_SEEK 73,1988
+#define HDCMD_DIAGNOSE 74,2017
+#define HDCMD_SPECS 75,2046
+#define HDSTAT_ERROR 78,2077
+#define HDSTAT_INDEX 79,2106
+#define HDSTAT_ECC 80,2135
+#define HDSTAT_DATAREQ 81,2164
+#define HDSTAT_SEEKOK 82,2193
+#define HDSTAT_WRFAULT 83,2222
+#define HDSTAT_READY 84,2251
+#define HDSTAT_BUSY 85,2280
+#define MAX_RESET_RETRIES 88,2311
+#define MAX_SEND_CMD_RETRIES 89,2346
+#define MAX_COMMAND_RETRIES 90,2381
+#define MAX_READ_RETRIES 91,2416
+#define MAX_WRITE_RETRIES 92,2451
+#define HDC_READY_MASK 95,2488
+#define HDC_STATUS_MASK 97,2553
+#define HDC_BLKSZ 100,2656
+} struct_hdd;struct_hdd117,3307
+#define DRIVE_HEAD(DRIVE_HEAD182,4375
+hdc_timer(190,4517
+hdc_surprise(207,4795
+hdc_data_request(216,4951
+hdc_interrupt(239,5309
+wait_hdc_interrupt(335,7037
+hdc_busy(352,7298
+hdc_ready(378,7637
+hdc_do_send_command(401,7973
+hdc_send_command(443,9107
+hdc_send_specs(466,9567
+hdc_recalibrate(483,9922
+hdc_seek(506,10329
+hdc_do_reset(526,10679
+hdc_reset(577,11441
+hdc_get_first_block(596,11732
+hdc_get_total_blocks(603,11854
+hdc_get_device_no(611,12005
+hdc_open(625,12229
+hdc_close(656,12702
+hdc_read(681,13150
+hdc_write(763,15400
+hdc_ioctl(878,18699
+hdc_lseek(899,19065
+hdc_init(915,19356
+
+driver/block/part.c,81
+} partition_table_entry;partition_table_entry47,1420
+partitions_setup(51,1451
+
+driver/character/klog.c,163
+klog_reset(75,1895
+klog_open(83,1987
+klog_close(101,2342
+klog_read(111,2456
+klog_write(163,3926
+klog_fcntl(193,4668
+klog_lseek(205,4787
+klog_init(215,4909
+
+driver/character/kmem.c,118
+kmem_open(64,1385
+kmem_close(73,1488
+kmem_read(82,1581
+kmem_write(90,1703
+kmem_lseek(98,1826
+kmem_init(108,1947
+
+driver/character/lp.c,636
+} lpflags_t;lpflags_t71,1544
+#define LPSTAT_BSY	85,1827
+#define LPSTAT_ACK	86,1898
+#define LPSTAT_PAP	87,1961
+#define LPSTAT_OFON	88,2015
+#define LPSTAT_ERR	89,2071
+#define LPCTRL_IRQ	91,2126
+#define LPCTRL_DSL	92,2188
+#define LPCTRL_INI	93,2245
+#define LPCTRL_ALF	94,2309
+#define LPCTRL_STR	95,2369
+#define LP_TIMEOUT	97,2435
+#define MAX_LPS	99,2462
+#define LP_BPORT0	102,2514
+#define LP_BPORT1	103,2538
+#define LP_BPORT2	104,2562
+#define LP_BPORT3	105,2586
+lp_open(118,2917
+lp_close(145,3426
+lp_read(155,3547
+lp_write_data(165,3700
+lp_write(209,4429
+lp_lseek(263,5538
+lp_minor_init(270,5612
+lp_init(305,6439
+
+driver/character/mem.c,114
+mem_open(67,1387
+mem_close(76,1488
+mem_read(85,1579
+mem_write(100,1836
+mem_lseek(115,2094
+mem_init(125,2213
+
+driver/character/null.c,118
+null_open(63,1325
+null_close(72,1428
+null_read(81,1521
+null_write(88,1583
+null_lseek(95,1654
+null_init(105,1776
+
+driver/character/termios.c,153
+isatty(47,1481
+sys_tcgetattr(63,1721
+sys_tcsetattr(86,2105
+sys_tcsendbreak(133,3018
+sys_tcdrain(147,3167
+sys_tcflush(161,3298
+sys_tcflow(192,3782
+
+driver/character/vtty.c,2226
+#define MAX_VTTYS 58,2088
+#define KEYS 60,2126
+#define TAB 62,2164
+#define ESC 63,2201
+#define CAPSLOCK 64,2238
+#define NUMLOCK 65,2272
+#define KBD_OUTB	68,2308
+#define KBD_INPB	69,2334
+#define KBD_SYSF	70,2360
+#define KBD_CD	71,2386
+#define KBD_KEYL	72,2411
+#define KBD_AUXB	73,2437
+#define KBD_TIM	74,2463
+#define KBD_PARE	75,2489
+#define keyboard_inpb_empty(keyboard_inpb_empty77,2516
+#define keyboard_outb_empty(keyboard_outb_empty78,2576
+#define VTTY_cm 86,2750
+#define VTTY_cc 88,2815
+#define VTTY_vb 96,3139
+#define VTTY_cv 98,3202
+#define VTTY_clear 103,3410
+#define VTTY_line 112,3752
+#define VTTY_char 118,3994
+#define VTTY_scroll 123,4191
+#define VTTY_mode 128,4371
+#define VTTY_color 135,4657
+#define VTTY_nw 141,4845
+#define VTTY_ti 142,4911
+#define VTTY_te 143,4957
+#define VTTY_it 144,5002
+#define VTTY_ct 145,5051
+#define VTTY_st 146,5098
+#define VTTY_ps 147,5143
+#define VTTY_po 148,5188
+#define VTTY_pf 149,5259
+#define VTTY_pO 150,5328
+} vtty_struct;vtty_struct187,6503
+#define seqcpy(seqcpy333,11811
+#define cursor_move(cursor_move337,11939
+keyboard_ready(349,12292
+keyboard_command(362,12429
+update_leds(373,12583
+alt_keys_setup(391,12891
+update_scrolllock(402,13040
+vtty_beep(418,13236
+vtty_6845setup(436,13716
+vtty_hardscroll(444,13814
+vtty_cursormove(454,14004
+vtty_cm(468,14232
+vtty_cc(578,15750
+vtty_vb(631,16781
+vtty_cv(642,16914
+vtty_clear(685,17847
+vtty_line(731,18768
+vtty_char(771,19577
+vtty_scroll(797,20045
+cmask_setup(831,20710
+vtty_mode(843,21007
+vtty_color(866,21456
+vtty_echo(928,22578
+vtty_outchar(1013,24127
+vtty_insertkey(1095,25831
+vtty_reset(1244,28445
+vtty_setup(1296,29642
+vtty_line_count(1321,30085
+discard_eof(1364,31040
+vtty_read_data(1376,31239
+vtty_write_data(1466,32842
+vtty_keyboard_interrupt(1486,33097
+vtty_setfocus(1654,37691
+keyboard_interrupt(1686,38445
+vtty_setfocus0(1708,38738
+vtty_open(1717,38849
+vtty_close(1740,39248
+vtty_read(1753,39412
+vtty_write(1763,39561
+vtty_ioctl(1770,39672
+vtty_fcntl(1799,40180
+vtty_lseek(1811,40309
+vtty_timer(1821,40432
+vtty_discard_input(1834,40833
+vtty_getattr(1848,41015
+vtty_setattr(1869,41515
+vtty_debug_info(1896,42215
+vtty_init(1911,42418
+
+proc/i386/faults.c,483
+divide_error(34,1009
+single_step(47,1139
+non_maskable_interrupt(60,1279
+breakpoint(73,1418
+overflow(86,1543
+array_bounds_check(99,1676
+invalid_operation_code(112,1823
+coprocessor_not_available(125,1977
+double_fault(138,2121
+coprocessor_segment_overrun(160,2733
+invalid_TSS_fault(173,2884
+segment_not_present_fault(196,3563
+stack_fault(217,4148
+general_protection_fault(244,5047
+coprocessor_error(269,5756
+display_registers(285,6071
+display_exception_header(328,7070
+
+proc/i386/async.S,0
+
+proc/i386/memcpy.S,0
+
+proc/i386/regs.S,0
+
+proc/i386/setup.S,0
+
+proc/i386/startup.S,0
+
+proc/i386/syscalls.S,24
+#define seg_es 34,1200
+
+arch/pc/cmos.c,39
+read_cmos(32,1003
+write_cmos(44,1179
+
+arch/pc/delay.c,17
+io_delay(32,963
+
+arch/pc/dma.c,218
+enable_dma_channel(32,1168
+disable_dma_channel(42,1311
+set_dma_channel_mode(52,1465
+clear_dma_channel_flipflop(62,1636
+set_dma_channel_count(69,1753
+set_dma_channel_address(87,2136
+set_dma_channel_page(107,2592
+
+arch/pc/port.c,21
+port_exists(35,1150
+
+include/thix/a.out.h,1616
+#define __A_OUT_GNU_H__6,83
+#define __GNU_EXEC_MACROS__12,149
+struct execexec16,212
+enum machine_type machine_type31,865
+#define PAGE_SIZE 56,1264
+#define SEGMENT_SIZE 57,1295
+#define PAGSIZ 59,1326
+#define SEGSIZ 60,1360
+#define N_MAGIC(N_MAGIC63,1421
+#define N_MACHTYPE(N_MACHTYPE65,1475
+#define N_FLAGS(N_FLAGS66,1552
+#define N_SET_INFO(N_SET_INFO67,1605
+#define N_SET_MAGIC(N_SET_MAGIC71,1756
+#define N_SET_MACHTYPE(N_SET_MACHTYPE74,1863
+#define N_SET_FLAGS(N_SET_FLAGS78,1990
+#define OMAGIC 84,2175
+#define NMAGIC 86,2235
+#define ZMAGIC 88,2303
+#define QMAGIC 92,2490
+#define N_BADMAG(N_BADMAG95,2535
+#define _N_BADMAG(_N_BADMAG105,2832
+#define _N_HDROFF(_N_HDROFF113,3048
+#define N_TXTOFF(N_TXTOFF116,3132
+#define N_DATOFF(N_DATOFF121,3273
+#define N_TRELOFF(N_TRELOFF125,3353
+#define N_DRELOFF(N_DRELOFF129,3434
+#define N_SYMOFF(N_SYMOFF133,3517
+#define N_STROFF(N_STROFF137,3599
+#define N_TXTADDR(N_TXTADDR142,3740
+#define _N_SEGMENT_ROUND(_N_SEGMENT_ROUND145,3771
+#define _N_TXTENDADDR(_N_TXTENDADDR147,3849
+#define N_DATADDR(N_DATADDR150,3919
+#define N_BSSADDR(N_BSSADDR157,4127
+struct nlist nlist161,4216
+#define N_UNDF 175,4454
+#define N_ABS 178,4499
+#define N_TEXT 181,4544
+#define N_DATA 184,4590
+#define N_BSS 187,4635
+#define N_COMM 190,4680
+#define N_FN 193,4725
+#define N_EXT 197,4770
+#define N_TYPE 200,4815
+#define N_STAB 203,4863
+#define N_INDR 214,5341
+#define N_SETA 228,5943
+#define N_SETT 229,6009
+#define N_SETD 230,6071
+#define N_SETB 231,6133
+#define N_SETV 234,6226
+struct relocation_inforelocation_info242,6604
+
+include/thix/blkdrv.h,134
+#define _THIX_BLKDRV_H2,23
+typedef struct tag_brtag_br10,105
+} blk_request;blk_request18,538
+} block_driver;block_driver38,985
+
+include/thix/block.h,27
+#define _THIX_BLOCK_H2,22
+
+include/thix/buffer.h,192
+#define _THIX_BUFFER_H2,23
+#define MAX_BUFFERS 14,161
+#define BUFFERS_BUCKETS_NO 15,206
+#define SYNC_ALL_DEVICES 16,251
+} buffer_t;buffer_t41,707
+#define buf_address(buf_address47,750
+
+include/thix/chrdrv.h,106
+#define _THIX_CHRDRV_H2,23
+} chr_request;chr_request15,173
+} character_driver;character_driver35,620
+
+include/thix/cluster.h,362
+#define _THIX_CLUSTER_H2,24
+#define cluster_data_blocks(cluster_data_blocks14,175
+#define cluster_reserved2fs(cluster_reserved2fs24,511
+#define cluster2fs(cluster2fs33,827
+#define fs2cluster(fs2cluster43,1211
+#define get_bitmap_inode 57,1719
+#define get_bitmap_block 58,1764
+#define release_bitmap_inode 60,1810
+#define release_bitmap_block 61,1863
+
+include/thix/ctype.h,87
+#define _THIX_CTYPE_H2,22
+#define isdigit(isdigit5,46
+#define isascii(isascii6,92
+
+include/thix/debug.h,112
+#define _THIX_DEBUG_H2,22
+struct kctrlkctrl40,1229
+#define DEBUG(DEBUG53,1404
+#define DEBUG(DEBUG62,1911
+
+include/thix/device.h,28
+#define _THIX_DEVICE_H2,23
+
+include/thix/dir.h,25
+#define _THIX_DIR_H2,20
+
+include/thix/dirent.h,56
+#define _THIX_DIRENT_H2,23
+struct direntdirent16,194
+
+include/thix/errno.h,880
+#define _THIX_ERRNO_H2,22
+#define MAX_ERRNO 5,46
+#define EPERM 8,84
+#define ENOENT 9,120
+#define ESRCH 10,156
+#define EINTR 11,192
+#define EIO 12,228
+#define ENXIO 13,264
+#define E2BIG 14,300
+#define ENOEXEC 15,336
+#define EBADF 16,372
+#define ECHILD 17,408
+#define EAGAIN 18,444
+#define ENOMEM 19,480
+#define EACCES 20,516
+#define EFAULT 21,552
+#define ENOTBLK 22,588
+#define EBUSY 23,624
+#define EEXIST 24,660
+#define EXDEV 25,696
+#define ENODEV 26,732
+#define ENOTDIR 27,768
+#define EISDIR 28,804
+#define EINVAL 29,840
+#define ENFILE 30,876
+#define EMFILE 31,912
+#define ENOTTY 32,948
+#define ETXTBSY 33,984
+#define EFBIG 34,1020
+#define ENOSPC 35,1056
+#define ESPIPE 36,1092
+#define EROFS 37,1128
+#define EMLINK 38,1164
+#define EPIPE 39,1200
+#define EDOM 40,1236
+#define ERANGE 41,1272
+#define ENAMETOOLONG 43,1309
+#define ENOSYS 45,1346
+
+include/thix/fcntl.h,345
+#define _THIX_FCNTL_H2,22
+#define O_RDONLY 11,158
+#define O_WRONLY 12,213
+#define O_RDWR 13,269
+#define O_APPEND 16,375
+#define O_NONBLOCK 17,441
+#define O_NDELAY 18,498
+#define O_CREAT 21,585
+#define O_TRUNC 22,657
+#define O_EXCL 23,723
+#define O_NOCTTY 24,791
+#define O_ASYNC 27,906
+#define O_FSYNC 28,985
+#define O_SYNC 29,1044
+
+include/thix/fcntlbits.h,469
+#define _THIX_FCNTLBITS_H23,978
+#define O_NDELAY 26,1022
+#define O_ACCMODE 31,1199
+#define F_DUPFD 34,1301
+#define F_GETFD 35,1367
+#define F_SETFD 36,1433
+#define F_GETFL 37,1499
+#define F_SETFL 38,1561
+#define F_GETOWN 40,1640
+#define F_SETOWN 41,1710
+#define F_GETLK 43,1787
+#define F_SETLK 44,1851
+#define F_SETLKW 45,1915
+#define FD_CLOEXEC 48,2046
+struct flockflock62,2401
+#define F_RDLCK 72,2831
+#define F_WRLCK 73,2873
+#define F_UNLCK 74,2916
+
+include/thix/fdc.h,74
+#define _THIX_FDC_H2,20
+#define FDC_MAJOR 10,99
+#define FDC_IRQ 11,125
+
+include/thix/fs.h,449
+#define _THIX_FS_H2,19
+#define TFS_MAGIC_V01 22,250
+#define TFS_MAGIC_V02 23,293
+#define TFS_VERSION 24,336
+#define TFS_PATCHLEVEL 25,370
+#define TFS_BOOT_BLOCK 28,406
+#define TFS_SUPERBLOCK 29,440
+#define TFS_MAX_BAD_BLOCKS 31,475
+#define TFS_BAD 33,513
+#define TFS_OK 34,547
+#define TFS_INODES_BITMAP 36,582
+#define TFS_BLOCKS_BITMAP 37,616
+} superblock;superblock84,2585
+struct statfsstatfs87,2601
+} mp_struct;mp_struct118,3984
+
+include/thix/gendrv.h,532
+#define _THIX_GENDRV_H2,23
+#define MAX_DRIVERS 14,159
+#define BLK_DRV 18,279
+#define CHR_DRV 19,332
+} minor_info;minor_info27,583
+#define major(major30,599
+#define minor(minor31,659
+#define makedev(makedev32,719
+#define mp(mp43,1003
+#define sb(sb44,1064
+#define device_in_use(device_in_use45,1117
+static inline int mounted(47,1183
+#define down_sync_mutex(down_sync_mutex55,1318
+#define up_sync_mutex(up_sync_mutex57,1453
+typedef void *drv_request;drv_request61,1577
+} generic_driver;generic_driver81,2036
+
+include/thix/generic.h,255
+#define _THIX_GENERIC_H2,24
+#define check_ufd(check_ufd10,107
+#define R_OK 21,560
+#define W_OK 22,625
+#define X_OK 23,691
+#define F_OK 24,759
+#define SEEK_SET 27,820
+#define SEEK_CUR 28,846
+#define SEEK_END 29,872
+} fd_struct;fd_struct38,1121
+
+include/thix/hdc.h,103
+#define _THIX_HDC_H2,20
+#define HDC_MAJOR 18,249
+#define HDC_IRQ 19,276
+#define HDC_CONTROL 22,305
+
+include/thix/indirect.h,56
+#define _THIX_INDIRECT_H2,25
+#define ITTY_MAJOR 9,135
+
+include/thix/inode.h,529
+#define _THIX_INODE_H2,22
+#define MAX_INODES	21,319
+#define INODES_BUCKETS_NO	25,468
+#define NO_INODE 27,499
+#define ROOT_INODE 28,534
+#define DIRECT_BLOCKS 33,597
+#define SINGLE_INDIRECT_BLOCK 34,632
+#define DOUBLE_INDIRECT_BLOCK 35,667
+#define TRIPLE_INDIRECT_BLOCK 36,702
+} dinode_t;dinode_t70,2010
+} inode_t;inode_t125,3977
+} iblk_data;iblk_data144,4523
+i_set_atime(162,4805
+i_set_mtime(170,4956
+i_set_ctime(178,5107
+i_set_time(186,5258
+i_duplicate(199,5522
+i_get_rid_of(206,5594
+i_get_rid_of2(214,5683
+
+include/thix/ioctl.h,221
+#define _THIX_IOCTL_H2,22
+#define TIOCGWINSZ 5,46
+#define TIOCSWINSZ 6,107
+#define IOCTL_GETBLKSZ 9,187
+#define IOCTL_GETDEVSZ 10,254
+#define TIOCGSIZE 13,360
+#define TIOCSSIZE 14,395
+struct winsizewinsize17,432
+
+include/thix/irq.h,71
+#define _THIX_IRQ_H2,20
+#define NOIRQ 5,42
+#define CASCADE_IRQ 7,87
+
+include/thix/klib.h,229
+#define _THIX_KLIB_H2,21
+#define min(min10,99
+#define max(max11,141
+#define min3(min313,184
+#define max3(max314,228
+#define PANIC(PANIC29,529
+#define msec_delay(msec_delay43,1136
+#define sec_delay(sec_delay46,1249
+
+include/thix/klog.h,53
+#define _THIX_KLOG_H2,21
+#define KLOG_MAJOR 10,101
+
+include/thix/kmem.h,53
+#define _THIX_KMEM_H2,21
+#define KMEM_MAJOR 10,101
+
+include/thix/kpid.h,198
+#define _THIX_KPID_H2,21
+#define IDLE 11,121
+#define SWAPPER 12,179
+#define INIT 13,240
+#define FF_KPID 14,298
+} kpid_struct;kpid_struct22,585
+#define FIRST 30,659
+#define NEXT(NEXT31,706
+
+include/thix/limits.h,520
+#define _THIX_LIMITS_H2,23
+#define ARG_MAX 10,100
+#define CHILD_MAX 13,197
+#define OPEN_MAX 16,311
+#define LINK_MAX 19,403
+#define MAX_CANON 22,495
+#define MAX_INPUT 25,610
+#define NAME_MAX 28,709
+#define PATH_MAX 31,806
+#define PIPE_BUF 35,933
+#define STREAM_MAX 38,1048
+#define NGROUPS_MAX 44,1241
+#define SYSTEM_PROCESS_MAX 54,1359
+#define SYSTEM_OPEN_MAX 57,1434
+#define SYSTEM_MOUNT_MAX 60,1511
+#define SYSTEM_SWAP_MAX 63,1588
+#define SYSTEM_SWAPBLK_MAX 66,1676
+#define SYSTEM_REQUEST_MAX 69,1759
+
+include/thix/lp.h,48
+#define _THIX_LP_H2,19
+#define LP_MAJOR 10,97
+
+include/thix/mem.h,50
+#define _THIX_MEM_H2,20
+#define MEM_MAJOR 10,99
+
+include/thix/null.h,53
+#define _THIX_NULL_H2,21
+#define NULL_MAJOR 10,101
+
+include/thix/param.h,73
+#define _THIX_PARAM_H2,22
+#define HZ 6,57
+#define EXEC_PAGESIZE 10,95
+
+include/thix/part.h,56
+#define _THIX_PART_H2,21
+} partition;partition14,211
+
+include/thix/pipe.h,26
+#define _THIX_PIPE_H2,21
+
+include/thix/process.h,63
+#define _THIX_PROCESS_H2,24
+#define superuser(superuser8,76
+
+include/thix/regular.h,29
+#define _THIX_REGULAR_H2,24
+
+include/thix/resource.h,529
+#define _THIX_RESOURCE_H2,25
+#define RLIMIT_INFINITY 10,107
+#define RLIM_INFINITY 11,164
+#define RLIMIT_CPU 14,236
+#define RLIMIT_FSIZE 15,310
+#define RLIMIT_DATA 17,400
+#define RLIMIT_STACK 18,479
+#define RLIMIT_CORE 19,559
+#define RLIMIT_RSS 21,654
+#define RLIMIT_MEMLOCK 22,730
+#define RLIMIT_NPROC 23,801
+#define RLIMIT_OFILE 24,861
+#define RLIMIT_NLIMITS 25,921
+#define RLIM_NLIMITS 26,978
+#define RUSAGE_SELF 30,1020
+#define RUSAGE_CHILDREN 31,1080
+struct rlimitrlimit34,1160
+struct rusagerusage41,1328
+
+include/thix/sched.h,1218
+#define _THIX_SCHED_H2,22
+#define HZ 7,65
+#define TIMER_IRQ 8,107
+#define ITIMER_REAL 13,177
+#define ITIMER_VIRTUAL 14,203
+#define ITIMER_PROF 15,229
+#define PRIO_MIN 18,257
+#define PRIO_MAX 19,337
+#define PRIO_PROCESS 21,418
+#define PRIO_PGRP 22,478
+#define PRIO_USER 23,544
+#define I_THRESHOLD_PRIORITY 36,915
+#define U_THRESHOLD_PRIORITY 37,981
+#define MAX_PRIORITY_LEVEL 38,1050
+#define WAIT_PIPE 43,1169
+#define WAIT_SIGNAL 44,1204
+#define WAIT_CHILD_EXIT 45,1239
+#define WAIT_TTY_OUTPUT 46,1274
+#define WAIT_KLOG_INPUT 47,1309
+#define WAIT_TTY_INPUT 48,1344
+#define WAIT_PAGE 53,1430
+#define WAIT_INODE 54,1465
+#define WAIT_SUPERBLOCK 55,1500
+#define WAIT_SYNC 56,1535
+#define WAIT_BUFFER 57,1570
+#define WAIT_DEVICE_BUSY 58,1605
+#define WAIT_DEVICE_IO 59,1640
+#define WAIT_SWAPPER 60,1675
+#define PROCESS_UNUSED 65,1736
+#define PROCESS_RUNNING 66,1770
+#define PROCESS_STOPPED 67,1804
+#define PROCESS_ZOMBIE 68,1838
+#define PROCESS_ASLEEP 69,1872
+} sched_struct;sched_struct78,2126
+} _itimerval;_itimerval88,2246
+typedef struct tag_alarm_structtag_alarm_struct91,2262
+} alarm_struct;alarm_struct95,2356
+struct timevaltimeval104,2433
+struct itimervalitimerval111,2498
+
+include/thix/semaphore.h,69
+#define _THIX_SEMAPHORE_H2,26
+typedef int semaphore;semaphore5,54
+
+include/thix/signal.h,1393
+#define _THIX_SIGNAL_H2,23
+#define _NSIG 5,48
+#define NSIG 6,67
+#define SIGHUP 12,162
+#define SIGINT 13,217
+#define SIGQUIT 14,274
+#define SIGILL 15,327
+#define SIGABRT 16,394
+#define SIGTRAP 17,447
+#define SIGIOT 18,506
+#define SIGEMT 19,555
+#define SIGFPE 20,604
+#define SIGKILL 21,676
+#define SIGBUS 22,742
+#define SIGSEGV 23,792
+#define SIGSYS 24,862
+#define SIGPIPE 25,927
+#define SIGALRM 26,987
+#define SIGTERM 27,1047
+#define SIGUSR1 28,1106
+#define SIGUSR2 29,1176
+#define SIGCHLD 30,1246
+#define SIGCLD 31,1319
+#define SIGPWR 32,1386
+#define SIGWINCH 33,1443
+#define SIGURG 34,1502
+#define SIGIO 35,1567
+#define SIGPOLL 36,1624
+#define SIGSTOP 37,1686
+#define SIGTSTP 38,1752
+#define SIGCONT 39,1814
+#define SIGTTIN 40,1871
+#define SIGTTOU 41,1944
+#define SIGVTALRM 42,2016
+#define SIGPROF 43,2076
+#define SIGXCPU 44,2138
+#define SIGXFSZ 45,2197
+typedef unsigned int __sigset_t;__sigset_t50,2283
+typedef void (*__sighandler_t)__sighandler_t51,2357
+struct sigactionsigaction57,2527
+#define SA_NOCLDSTOP 69,2828
+#define SIG_BLOCK 73,2961
+#define SIG_UNBLOCK 74,3015
+#define SIG_SETMASK 75,3071
+#define SIG_ERR 78,3144
+#define SIG_DFL 79,3189
+#define SIG_IGN 80,3233
+#define SIG_BLOCKABLE 83,3279
+#define WNOHANG 88,3361
+#define WUNTRACED 89,3421
+#define WAIT_ANY 91,3496
+#define WAIT_MYGRP 92,3559
+#define signals(signals98,3732
+
+include/thix/sleep.h,27
+#define _THIX_SLEEP_H2,22
+
+include/thix/stat.h,898
+#define _THIX_STAT_H2,21
+#define S_IFSOCK 17,289
+#define S_IFLNK 18,334
+#define S_IFREG 19,382
+#define S_IFBLK 20,433
+#define S_IFDIR 21,484
+#define S_IFCHR 22,532
+#define S_IFIFO 23,587
+#define S_ISUID 25,631
+#define S_ISGID 26,687
+#define S_ISVTX 27,749
+#define S_IRWXU 29,799
+#define S_IRUSR 30,867
+#define S_IWUSR 31,919
+#define S_IXUSR 32,972
+#define S_IRWXG 34,1028
+#define S_IRGRP 35,1096
+#define S_IWGRP 36,1148
+#define S_IXGRP 37,1201
+#define S_IRWXO 39,1257
+#define S_IROTH 40,1326
+#define S_IWOTH 41,1379
+#define S_IXOTH 42,1433
+#define S_IREAD 44,1490
+#define S_IWRITE 45,1542
+#define S_IEXEC 46,1595
+#define S_IFMT 48,1651
+#define S_ISSOCK(S_ISSOCK50,1722
+#define S_ISLNK(S_ISLNK51,1786
+#define S_ISREG(S_ISREG52,1849
+#define S_ISBLK(S_ISBLK53,1912
+#define S_ISDIR(S_ISDIR54,1975
+#define S_ISCHR(S_ISCHR55,2038
+#define S_ISFIFO(S_ISFIFO56,2101
+
+include/thix/statbuf.h,791
+#define _THIX_STATBUF_H2,24
+#define _STATBUF_ST_BLKSIZE 6,115
+struct statstat12,317
+#define __S_IFSOCK 42,1581
+#define __S_IFLNK 43,1634
+#define __S_IFREG 44,1690
+#define __S_IFBLK 45,1749
+#define __S_IFDIR 46,1808
+#define __S_IFCHR 47,1864
+#define __S_IFIFO 48,1927
+#define __S_ISUID 52,2004
+#define __S_ISGID 53,2068
+#define __S_ISVTX 54,2138
+#define __S_IRWXU 56,2196
+#define __S_IRUSR 57,2272
+#define __S_IWUSR 58,2332
+#define __S_IXUSR 59,2393
+#define __S_IRWXG 61,2457
+#define __S_IRGRP 62,2533
+#define __S_IWGRP 63,2593
+#define __S_IXGRP 64,2654
+#define __S_IRWXO 66,2718
+#define __S_IROTH 67,2795
+#define __S_IWOTH 68,2856
+#define __S_IXOTH 69,2918
+#define __S_IREAD 71,2983
+#define __S_IWRITE 72,3043
+#define __S_IEXEC 73,3104
+#define __S_IFMT 75,3168
+
+include/thix/stdarg.h,207
+#define _THIX_STDARG_H2,23
+typedef char *va_list;va_list5,48
+#define va_start(va_start7,72
+#define __va_rounded_size(__va_rounded_size9,128
+#define va_arg(va_arg12,274
+#define va_end(va_end16,441
+
+include/thix/string.h,74
+#define _THIX_STRING_H2,23
+lmemcpy(9,137
+memset(26,478
+lmemset(40,761
+
+include/thix/syscall.h,2523
+#define _THIX_SYSCALL_H2,24
+#define SYS_fork 5,50
+#define SYS_exec 6,85
+#define SYS_ustat 7,120
+#define SYS_utime 8,155
+#define SYS_getpid 9,190
+#define SYS_brk 10,225
+#define SYS_getppid 11,260
+#define SYS_exit 12,295
+#define SYS_umask 13,330
+#define SYS_fcntl 14,365
+#define SYS_kctrl 15,400
+#define SYS_kill 16,435
+#define SYS_wait 17,470
+#define SYS_pause 18,505
+#define SYS_statfs 19,540
+#define SYS_fstatfs 20,575
+#define SYS_uname 21,610
+#define SYS_stime 22,645
+#define SYS_time 23,680
+#define SYS_times 24,715
+#define SYS_alarm 25,750
+#define SYS_sync 26,785
+#define SYS_chmod 27,820
+#define SYS_open 28,855
+#define SYS_close 29,890
+#define SYS_link 30,925
+#define SYS_unlink 31,960
+#define SYS_mkdir 32,995
+#define SYS_chdir 33,1030
+#define SYS_sigend 34,1065
+#define SYS_readdir 35,1100
+#define SYS_rmdir 36,1135
+#define SYS_reboot 37,1170
+#define SYS_lseek 38,1205
+#define SYS_read 39,1240
+#define SYS_write 40,1275
+#define SYS_dup 41,1310
+#define SYS_stat 42,1345
+#define SYS_fstat 43,1380
+#define SYS_dup2 44,1415
+#define SYS_mknod 45,1450
+#define SYS_pipe 46,1485
+#define SYS_setuid 47,1520
+#define SYS_setgid 48,1555
+#define SYS_getuid 49,1590
+#define SYS_geteuid 50,1625
+#define SYS_getgid 51,1660
+#define SYS_getegid 52,1695
+#define SYS_sigpending 53,1730
+#define SYS_sigprocmask 54,1765
+#define SYS_sigsuspend 55,1800
+#define SYS_sigaction 56,1835
+#define SYS_chown 57,1870
+#define SYS_access 58,1905
+#define SYS_getprocinfo 59,1940
+#define SYS_getsysinfo 60,1975
+#define SYS_ioctl 61,2010
+#define SYS_tcsendbreak 62,2045
+#define SYS_tcdrain 63,2080
+#define SYS_tcflush 64,2115
+#define SYS_tcflow 65,2150
+#define SYS_tcgetattr 66,2185
+#define SYS_tcsetattr 67,2220
+#define SYS_getitimer 68,2255
+#define SYS_setitimer 69,2290
+#define SYS_getrlimit 70,2325
+#define SYS_setrlimit 71,2360
+#define SYS_getrusage 72,2395
+#define SYS_getpriority 73,2430
+#define SYS_setpriority 74,2465
+#define SYS_mount 75,2500
+#define SYS_umount 76,2535
+#define SYS_waitpid 77,2570
+#define SYS_setsid 78,2605
+#define SYS_setpgid 79,2640
+#define SYS_getpgrp 80,2675
+#define SYS_swapon 81,2710
+#define SYS_swapoff 82,2745
+#define SYS_select 83,2780
+#define SYS_readlink 84,2815
+#define SYS_chroot 85,2850
+#define SYS_truncate 86,2885
+#define SYS_lstat 87,2920
+#define SYS_symlink 88,2955
+#define SYS_sethostname 89,2990
+#define SYS_setdomainname 90,3025
+#define SYS_ftruncate 91,3060
+#define SYS_fchown 92,3095
+#define SYS_fchmod 93,3130
+
+include/thix/system.h,91
+#define _THIX_SYSTEM_H2,23
+struct procinfoprocinfo22,269
+struct sysinfosysinfo50,1623
+
+include/thix/termios.h,2831
+#define _THIX_TERMIOS_H21,921
+typedef unsigned long int tcflag_t;tcflag_t30,1330
+typedef unsigned char cc_t;cc_t33,1402
+typedef long int speed_t;speed_t36,1468
+struct termiostermios39,1530
+#define IGNBRK 43,1589
+#define BRKINT 44,1652
+#define IGNPAR 45,1718
+#define PARMRK 46,1795
+#define INPCK 47,1866
+#define ISTRIP 48,1932
+#define INLCR 49,2001
+#define IGNCR 50,2063
+#define ICRNL 51,2113
+#define IXON 52,2175
+#define IXOFF 53,2248
+#define IXANY 55,2338
+#define IMAXBEL 56,2416
+#define OPOST 61,2542
+#define ONLCR 63,2626
+#define OXTABS 64,2692
+#define ONOEOT 65,2754
+#define CIGNORE 71,2891
+#define CSIZE 73,2965
+#define CS5 74,3044
+#define CS6 75,3100
+#define CS7 76,3156
+#define CS8 77,3212
+#define CSTOPB 78,3268
+#define CREAD 79,3337
+#define PARENB 80,3393
+#define PARODD 81,3447
+#define HUPCL 82,3514
+#define CLOCAL 83,3576
+#define CCTS_OFLOW 85,3660
+#define CRTS_IFLOW 86,3735
+#define MDMBUF 87,3809
+#define ECHOKE 93,3956
+#define _ECHOE 95,4025
+#define ECHOE 96,4088
+#define _ECHOK 97,4111
+#define ECHOK 98,4170
+#define _ECHO 99,4193
+#define ECHO 100,4245
+#define _ECHONL 101,4267
+#define ECHONL 102,4335
+#define ECHOPRT 104,4377
+#define ECHOCTL 105,4439
+#define _ISIG 107,4516
+#define ISIG 108,4571
+#define _ICANON 109,4593
+#define ICANON 110,4662
+#define ALTWERASE 112,4704
+#define _IEXTEN 114,4778
+#define IEXTEN 115,4843
+#define EXTPROC 116,4867
+#define _TOSTOP 117,4927
+#define TOSTOP 118,5002
+#define FLUSHO 120,5044
+#define NOKERNINFO 121,5113
+#define PENDIN 122,5169
+#define _NOFLSH 124,5245
+#define NOFLSH 125,5315
+#define VEOF 128,5369
+#define VEOL 129,5440
+#define VEOL2 131,5529
+#define VERASE 133,5606
+#define VWERASE 135,5689
+#define VKILL 137,5766
+#define VREPRINT 139,5853
+#define VINTR 141,5932
+#define VQUIT 142,5999
+#define VSUSP 143,6061
+#define VDSUSP 145,6144
+#define VSTART 147,6224
+#define VSTOP 148,6301
+#define VLNEXT 150,6396
+#define VDISCARD 151,6468
+#define VMIN 153,6542
+#define VTIME 155,6636
+#define VSTATUS 158,6747
+#define NCCS 160,6820
+#define CBAUD 165,6927
+#define B0 166,6994
+#define B50 167,7042
+#define B75 168,7090
+#define B110 169,7138
+#define B134 170,7187
+#define B150 171,7238
+#define B200 172,7287
+#define B300 173,7336
+#define B600 174,7385
+#define B1200 175,7434
+#define B1800 176,7484
+#define B2400 177,7534
+#define B4800 178,7584
+#define B9600 179,7634
+#define B19200 180,7684
+#define B38400 181,7735
+#define EXTA 183,7804
+#define EXTB 184,7826
+#define _IOT_termios 188,7859
+#define TCSANOW 192,8046
+#define TCSADRAIN 193,8105
+#define TCSAFLUSH 194,8183
+#define TCSASOFT 196,8277
+#define TCIFLUSH 200,8418
+#define TCOFLUSH 201,8497
+#define TCIOFLUSH 202,8575
+#define TCOOFF 205,8692
+#define TCOON 206,8747
+#define TCIOFF 207,8812
+#define TCION 208,8874
+
+include/thix/times.h,49
+#define _THIX_TIMES_H2,22
+struct tmstms11,174
+
+include/thix/types.h,530
+#define _THIX_TYPES_H2,22
+#define NULL 7,65
+typedef unsigned int size_t;size_t9,89
+typedef long int clock_t;clock_t10,118
+typedef long int __time_t;__time_t12,145
+typedef unsigned short __dev_t;__dev_t13,172
+typedef unsigned __ino_t;__ino_t14,204
+typedef unsigned short __mode_t;__mode_t15,230
+typedef unsigned short __nlink_t;__nlink_t16,263
+typedef long int __off_t;__off_t17,297
+typedef unsigned short __uid_t;__uid_t18,323
+typedef unsigned short __gid_t;__gid_t19,355
+typedef int __pid_t;__pid_t20,387
+
+include/thix/ustat.h,51
+#define _THIX_USTAT_H2,22
+struct ustatustat5,46
+
+include/thix/utime.h,57
+#define _THIX_UTIME_H2,22
+struct utimbufutimbuf11,141
+
+include/thix/utsname.h,136
+#define _THIX_UTSNAME_H24,942
+#define _UTSNAME_LENGTH 27,968
+#define _UTSNAME_NODENAME_LENGTH 30,1038
+struct utsnameutsname36,1149
+
+include/thix/vm.h,1965
+#define _THIX_VM_H2,19
+#define GDT_DESCRIPTORS 34,429
+#define DATA_ARB 36,468
+#define STACK_ARB 37,548
+#define CODE_ARB 38,628
+#define LDT_ARB 39,665
+#define VALID_TSS_ARB 40,702
+#define INVALID_TSS_ARB 41,739
+#define DESCRIPTORS_PER_LDT 43,777
+#define PAGE_SIZE 48,934
+#define PAGE_SHIFT 51,1007
+#define PAGE_PRESENT 54,1077
+#define PAGE_RW 57,1150
+#define PAGE_US 60,1228
+#define PAGE_SWP 63,1330
+#define PAGE_UWP 66,1446
+#define PAGE_URP 69,1572
+#define PAGE_ACCESSED 72,1663
+#define HARDWARE_RESERVED_PAGES 75,1769
+#define i386VM_PAGES 78,1882
+#define LOW_PAGES_LIMIT 82,2029
+#define HIGH_PAGES_LIMIT 86,2172
+#define WORK_SET_SIZE 90,2329
+#define MAX_PAGE_AGE 93,2428
+#define SAFE_PAGES 97,2606
+} descriptor_t;descriptor_t109,2832
+} vmaddr_t;vmaddr_t117,2946
+} pgdata_t;pgdata_t145,3596
+} pgtbl_t;pgtbl_t160,3875
+#define PAGE_DZ 163,3888
+#define PAGE_DF 164,3914
+#define PAGE_FILE 165,3940
+#define PAGE_SWAP 166,3966
+} extpgtbl_t;extpgtbl_t175,4158
+} swap_t;swap_t186,4557
+} rlimits;rlimits200,5193
+} busyblock_t;busyblock_t208,5393
+} tss_t;tss_t334,9732
+#define SYSCALL_PROLOG(SYSCALL_PROLOG338,9760
+#define SYSCALL_EPILOG(SYSCALL_EPILOG339,9813
+#define SYSCALL_PROLOG(SYSCALL_PROLOG341,9872
+#define SYSCALL_EPILOG(SYSCALL_EPILOG342,9897
+invalidate_cache(347,9950
+#define USER_NULL 357,10097
+#define pid(pid359,10152
+#define ppid(ppid360,10203
+#define pgrp(pgrp361,10255
+#define session(session362,10307
+#define ruid(ruid364,10354
+#define euid(euid365,10406
+#define suid(suid366,10458
+#define rgid(rgid368,10511
+#define egid(egid369,10563
+#define sgid(sgid370,10615
+#define status(status372,10668
+#define session(session373,10722
+#define wakeup_priority(wakeup_priority374,10777
+#define map_page(map_page387,11090
+#define is_mapped(is_mapped395,11560
+#define pgd_address(pgd_address420,12260
+#define MEM_DATA 434,12737
+#define MEM_STACK 435,12763
+reschedule(443,12907
+
+include/thix/vmalloc.h,200
+#define _THIX_VMALLOC_H2,24
+#define M_PAGE_FULL 5,50
+#define M_PAGE_EMPTY 6,79
+#define vm_xalloc(vm_xalloc16,311
+#define vm_xfree(vm_xfree17,377
+#define can_do_vm_alloc(can_do_vm_alloc20,428
+
+include/thix/vmdev.h,264
+#define _THIX_VMDEV_H2,22
+#define MAX_VM_DEVICES 10,101
+#define FS_DEVICE 13,130
+#define SWAP_DEVICE 14,157
+} vmdev_struct;vmdev_struct23,455
+#define vmdev_device(vmdev_device31,530
+#define vmdev_type(vmdev_type32,585
+#define vmdev_aux(vmdev_aux33,638
+
+include/thix/vtty.h,78
+#define _THIX_VTTY_H2,21
+#define VTTY_MAJOR 18,215
+#define VTTY_IRQ 19,241

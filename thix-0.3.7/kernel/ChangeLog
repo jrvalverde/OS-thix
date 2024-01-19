@@ -1,0 +1,30 @@
+Fri Mar 29 18:49:30 1996  Tudor Hulubei  <tudor@chang>
+
+	* fork.c (sys_fork): Fixed.  Hopefully this will fix a lot of
+	related problems/bugs that I have been unable to understand/fix
+	in the past.  The problem was really nasty, mostly because I
+	wasn't careful enough when initializing the child stack.  Copying
+	the internal stack of the parent was a *very* silly thing to do.
+	Now things are under control :-)
+
+Mon Mar 11 13:24:47 1996  Tudor Hulubei  <tudor@chang>
+
+	* main.c (sys_kctrl): Adapted to the new debug level setup scheme.
+
+	* kpid.c (get_kpid): Modified to only allocate the last two empty
+ 	process slots if superuser.  This is a little bit flexible than
+ 	reserving only the last one - we can type something like:
+	`ps | more'
+	to see what is going on...
+
+	* process.c (find_unused_pid): New function.  The pid is no longer
+ 	allocated by simply incrementing `latest_pid'.  The pid is now a
+ 	number between 0 and 32767 and the kernel checks to see if there
+ 	is no other process using that pid as a process, process group or
+	session id.
+
+Sun Mar 10 23:58:10 1996  Tudor Hulubei  <tudor@chang>
+
+	* system.c (sys_getprocinfo): Bug fix.  SYSTEM_OPEN_MAX replaced
+	with SYSTEM_PROCESS_MAX.  Silly me...
+

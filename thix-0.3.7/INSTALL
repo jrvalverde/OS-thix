@@ -1,0 +1,353 @@
+
+		    Installing Thix on your Hard Disk
+		    =================================
+
+
+WARNING
+*******
+
+Installing Thix on  your hard  drive is  a complicated procedure  that
+should  be  done  with great  care.  In   order to  avoid any possible
+problems, please backup  everything before proceeding.  Note that Thix
+is still  alpha, it probably has many  bugs, and there is no guarantee
+that it will work.  You have been warned.
+
+
+Prerequisites
+-------------
+
+- A Linux system with an `a.out' GNU C compiler >= 2.6.3.
+- An (E)IDE hard disk.
+- A 3.5" floppy drive installed as /dev/fd0
+- The contents of the Thix archive at ftp://ftp.pub.ro/pub/thix:
+
+	images/thix-demo.bin.gz
+	images/thix-install.bin.gz
+	distribution/disk[1-5]
+	sources/thix/thix-0.3.7.tar.gz
+	sources/tfs/tfs-0.2.1.tar.gz
+
+- Optionally you can download the sources of the Thix specific
+  utilities and C library startup:
+
+	sources/misc/bin.tar.gz
+	sources/misc/crt0.tar.gz
+
+
+Step 1 - Does Thix recognize your system?
+-----------------------------------------
+
+Uncompress the demo floppy disk image (thix-demo.bin.gz).  It contains
+the image of a bootable 3.5" floppy disk.  Dump it  on a formated 3.5"
+floppy disk.  Under Linux, if you  have appropriate permission (root),
+you can type:
+
+dd if=thix-demo.bin of=/dev/fd0
+
+You now have a bootable  Thix floppy.  Reboot  your machine and try to
+boot from it.
+
+Read the Thix boot  messages  carefully and see  if  Thix is able   to
+correctly detect  the geometry of your  hard disk and if  it correctly
+reports your *primary* disk   partitions.  Note that  Thix is  not yet
+able to detect  extended  partitions or secondary (E)IDE  controllers.
+It should only  detect your master/slave  hard disks (if any) on  your
+first controller.  If your hard disk works with LBA mode enabled, Thix
+should report it.
+
+Switch to  another  virtual  tty and  type  root  at the login  prompt
+(password root).  After logging in, try to see  if things look ok.  An
+important thing is  to  make sure that  the special  file denoting the
+partition  on which you  want to install  Thix actually corresponds to
+your partition.  Thix uses the same name scheme  for its special files
+as Linux, so you will probably have no  problems figuring out which is
+the special file needed.  As  an example, if  you want to install Thix
+in the third partition on your primary master hard disk, you will want
+to take a look at /dev/hda3.
+
+The only thing you can do is to type:
+
+more /dev/hda3
+
+and see if `more' displays something that you know it should be there,
+(a boot sector or something).  Note that the  kernel installed on this
+floppy has the hard disk write routine disabled.  At the first attempt
+to write something on the disk, Thix will halt.
+
+When you're done, press Ctrl-Alt-Del to reboot.
+
+
+Step 2 - Compiling the Thix sources
+-----------------------------------
+
+Assuming everything went ok since now, you should boot Linux again and
+compile the  mktfs/tfsck utilities, the  Thix kernel and the partition
+boot sector.  Here is how you should do it.
+
+Unpack the sources of the Thix FS utilities (tfs-0.2.1.tar.gz) and the
+kernel sources (thix-0.3.7.tar.gz). At this  point you should have two
+directories  in the  current   directory: thix-0.3.7   and  tfs-0.2.1.
+Create a symbolic link called `thix' to the thix-0.3.7 directory and a
+symbolic link called `tfs' to  the tfs-0.2.1 directory.  You will need
+them later.
+
+Run  the Linux fdisk utility and  take a look   at the number  of 1 Kb
+blocks in  the partition  where  you want  to install Thix.    To make
+things clear, I will assume that you want to install Thix on /dev/hda3
+and  that /dev/hda3   is 66528 1K  blocks  long  (this is my   current
+configuration).
+
+Enter    the  tfs directory.    Edit   the file    tfsck.c and  change
+THIX_PARTITION_NAME to  denote    the name of the    target  partition
+("/dev/hda3" in our case) and  THIX_PARTITION_SIZE to the number of 1K
+blocks (66528).
+
+Edit  the file  mktfs.c and  change  THIX_PARTITION_NAME to denote the
+name of the target partition ("/dev/hda3" in our case).
+
+(This things  have been hard coded  here in order  to  prevent me from
+accidently running mktfs on the wrong partition :-)
+
+Type  `make dep  all'.  This  should build  both `tfsck' and  `mktfs'.
+Note that this will require the Thix source  tree to be in the ../thix
+directory.
+
+Now go into the Thix source tree (../thix).
+
+If you  are running  an older (a.out)  version  of Linux, you need  to
+remove the  `-b i486-linuxaout'  flag from CFLAGS   in the  top  level
+Makefile.  This option is there in order to  make sure an a.out kernel
+image is generated on ELF Linux systems (you need to install the a.out
+GNU C compiler, of course).
+
+If your machine is  a i386, then edit the  top level Makefile and  add
+-D__i386k__ to  CFLAGS.  This is done in  order to work around an i386
+design   flaw  that   prevents  the processor    from generating  page
+protection faults when writing to   read only pages from kernel  mode.
+i486 and  better  processors don't   have  this problem.  The  default
+Makefile is for processors >= i486.
+
+Edit the file fs/mount.c and set the root_device to point to the first
+floppy disk.  That  is,  uncomment this lines (remove  the surrounding
+#if 0 / #endif pair):
+
+/* /dev/fd0  */
+int root_device = FDC_MAJOR * 0x100 + 0;
+
+This will tell the kernel to load the root file system from floppy.
+(Note that you should also comment out the line referring to the hard
+disk partition.)
+
+For  a detailed description  of the device  major/minor numbers please
+refer to the file doc/DEVICES included in the distribution.
+
+Ok, now  you should edit the file   driver/block/hdc.c to put  a small
+test there that will stop  the kernel  at  the first attempt to  write
+data to your hard disk anywhere else but your Thix root file system or
+swap partition.  Search  for the string  `INVALID'  in the hdc_write()
+function and modify that test to only allow  write access to your hard
+disk if the cylinder number is between the start  and end of your Thix
+root file  system.  You can   find these values   by running the Linux
+fdisk program, but be aware  that the values reported are artificially
+incremented by one!
+
+As an example,   here it is  the output  of  `fdisk' on  my computers'
+/dev/hda:
+
+--------------------------------------------------------------------
+Using /dev/hda as default device!
+
+Command (m for help): p
+
+Disk /dev/hda: 64 heads, 63 sectors, 525 cylinders
+Units = cylinders of 4032 * 512 bytes
+
+   Device Boot  Begin   Start     End  Blocks   Id  System
+/dev/hda1           1       1     381  768064+   5  Extended
+/dev/hda2         382     382     398   34272    6  DOS 16-bit >=32M
+/dev/hda3         399     399     431   66528    6  Unknown
+/dev/hda4   *     432     432     525  189504    7  OS/2 HPFS
+/dev/hda5           1       1     153  308385   83  Linux native
+/dev/hda6         154     154     331  358816+  83  Linux native
+/dev/hda7         332     332     381  100768+  83  Linux native
+--------------------------------------------------------------------
+
+As you can see, the Thix partition (/dev/hda3) is reported as starting
+at cylinder 399 and ending  at cylinder 431, which  is not true.   The
+Thix  partition's  first  and  last cylinders  are  398  and 430.  The
+difference comes from   the fact that  fdisk  reports 1-based cylinder
+numbers while the BIOS and the (E)IDE controllers expect 0-based ones.
+BE CAREFUL WITH THIS STUFF.
+
+Type `make dep  all' in the kernel  top level directory.   This should
+build the  sources.   At the end  of the  compilation process a kernel
+image called `thix' will be created.
+
+The  last  step  in compiling  the  sources  is  the creation   of the
+partition  boot sector.  Go into   the boot/harddisk directory in  the
+Thix source  code  tree.  Edit  the  file boot.S.    Set the HEAD  and
+SECTORS constants to the number of heads and the number of sectors per
+track  of your hard disk.  Also  set the START_CYLINDER and START_HEAD
+constants to the  number of the first cylinder  of your Thix partition
+(0-based) and   to  the number   of the  head  (usually  0)  where the
+partition starts.  USE LBA NUMBERS IF YOUR HARD DISK USES LBA!
+
+Type `make'.  You should obtain a file called `boot.bin'.  This is the
+partition boot sector.  We will dump it on the disk later.
+
+
+Step 3 - Format the Thix Partition
+----------------------------------
+
+Before  formatting   the  Thix file  system,  make  sure  you  are not
+currently using it under Linux.  If it  is mounted, unmount it.  Also,
+if  that partition is listed  in  the /etc/fstab  file, remove it NOW.
+Linux  will have problems rebooting  if   it finds a  partition in  an
+unknown format in the /etc/fstab list.
+
+Use the mktfs utility created at step 2 to format your Thix partition.
+Type `mktfs  -h' to get the list  of possible options.   I suggest you
+reserve about 256K for the kernel (the -k option).  Here  it is what I
+used to create my Thix file system on /dev/hda3:
+
+mktfs -k 256 /dev/hda3 66528
+
+Now go and edit your /etc/lilo.conf file and add an entry for /dev/hda3.
+Here it is the relevant part of my lilo.conf file:
+
+other = /dev/hda3
+  label = Thix
+  table = /dev/hda
+
+Restart lilo to make the changes permanent.
+
+
+Step 4 - Creating the Install Floppy
+------------------------------------
+
+Uncompress the   install floppy disk image   (thix-install.bin.gz) and
+dump it on a formatted  floppy disk, precisely the  same you did  with
+the demo floppy.
+
+This floppy is  a self contained  install disk.  However, in order  to
+take advantage of the test you  put in the  hard disk driver, you will
+have to dump the kernel image obtained at step 2 on it:
+
+dd if=thix of=/dev/fd0 bs=1024 seek=2
+
+Note that this is  not a necessary step, but  the floppy disk contains
+no test against invalid cylinder access (other than the one imposed by
+the hard disk geometry).
+
+
+Step 5 - Preparing the Thix Hard Disk Partition
+-----------------------------------------------
+
+In order to be able  to boot from your  Thix hard disk partition, that
+partition should contain a valid boot  sector and a kernel.  The first
+part (the boot sector) is easy to  accomplish - you have assembled the
+boot sector at step 2.  Just dump it on the partition:
+
+dd if=boot.bin of=/dev/hda3
+
+The second step is to recompile the kernel with a new root_device.
+
+Go into the Thix source tree (../thix).
+
+Edit  the  file fs/mount.c and  set the  root_device  to  point to the
+partition you want to install Thix on. That is, uncomment this lines:
+
+/* /dev/hda3  */
+int root_device = HDC_MAJOR * 0x100 + 4;
+
+Now adjust  the minor device number as  needed.  Here is the  table of
+hard disk minor device numbers:
+
+	  Device   |  Minor
+	===========+========
+	 /dev/hda1 |	2
+	 /dev/hda2 |	3
+	 /dev/hda3 |	4
+	 /dev/hda4 |	5
+	 /dev/hdb1 |	6
+	 /dev/hdb2 |	7
+	 /dev/hdb3 |	8
+	 /dev/hdb4 |	9
+
+As you can see from our example /dev/hda3's minor device number is 4.
+
+This will tell the kernel to load the root file system from /dev/hda3.
+(Note  that you  should  also comment  out  the line  referring to the
+floppy disk.)
+
+Rebuild the   kernel by typing `make'.   The  file fs/mount.c  will be
+recompiled and a new kernel image will be generated.   Dump it on your
+Thix root file system (/dev/hda3 in our example):
+
+dd if=thix of=/dev/hda3 bs=1024 seek=2
+
+Your Thix file system is now bootable.   Don't jump on it, though, you
+will have to install some programs first :-)
+
+
+Step 5 - Installing the System
+------------------------------
+
+At  this stage  we have a  bootable  (but empty)  Thix file  system on
+/dev/hda3 and an install disk.  Exit Linux  and boot the install disk.
+At the login prompt   type root (password   root) and then  start  the
+`install' script.   Specify the name  of   the target partition  as  a
+command line argument:
+
+install /dev/hda3
+
+This  will install a minimal set  of utilities on /dev/hda3 and create
+the necessary  special files in  the /dev directory.  When done, press
+Ctrl-Alt-Del to reboot.
+
+At the LILO: prompt type `Thix'. This should boot Thix from /dev/hda3.
+
+
+Step 6 - Installing Software Packages
+-------------------------------------
+
+Put  the contents of  disk1 to disk5 on  a separate 1.44 MSDOS floppy.
+Boot Thix.  Log in as root (password root) and type
+
+mdir a:
+
+to see if you can  list the files on floppies.    You may install  any
+package you want from any floppy, in any order, by running:
+
+pkginst package-name
+
+For example,  to install the  GNU C compiler,  insert the  floppy disk
+containing gcc.tgz in the first drive and type:
+
+pkginst gcc.tgz
+
+
+Step 7 - Cleaning up
+--------------------
+
+Finally, the last  step.  Run `instclean' to  ranlib the C  libraries,
+link gunzip to gzip, set some file permissions, etc.  Then reboot.
+
+To make sure the Thix  file system contains no  errors, boot Linux and
+run the tfsck utility like this:
+
+tfsck -vir /dev/hda3
+
+It should report any error found and prompt you before repairing.
+
+You're done.
+
+
+PROBLEMS
+********
+
+Please report any problems to tudorh@pub.ro
+
+
+Tudor Hulubei
+May 14, 1996

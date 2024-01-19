@@ -1,0 +1,8 @@
+getsysinfo.S
+getprocinfo.S
+setdomainname.S
+mount.S
+umount.S
+swapoff.S
+ustat.S
+__readdir.S

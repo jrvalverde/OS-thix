@@ -1,0 +1,34 @@
+Wed May 15 11:12:42 1996  Tudor Hulubei  <tudor@chang.pub.ro>
+
+	* inode.c (__namei): Fixed a possible race due to releasing i_no
+	too soon when finding directory entries.
+
+Tue May 14 10:39:38 1996  Tudor Hulubei  <tudor@chang.pub.ro>
+
+	* generic.c (sys_read, sys_write): Fixed a bug introduced in
+	0.3.4.  The return value is correctly reported in all cases.
+
+Wed Apr 10 13:36:53 1996  Tudor Hulubei  <tudor@chang.pub.ro>
+
+	* inode.c: inode changed to inode_t.  dinode changed to dinode_t.
+
+	* buffer.c: buffer changed to buffer_t.
+
+Wed Mar  6 17:37:39 1996  Tudor Hulubei  <tudor@chang>
+
+	* inode.c (i_remove): New function.
+
+	* mount.c (fs_in_use): Inodes are deleted from the cache when
+	fs_in_use() is called from sys_umount() so that when remounting a
+	new file system on removable devices we won't get inodes
+	belonging to the old file system from the inode cache (hash
+	table).  An annoying, but harmless side effect is that if
+	fs_in_use() returns 1 (there are still busy inodes on the file
+	system other than the root inode), before returning it might have
+	removed some inodes from the cache.  The alternative is to parse
+	the inode cache twice, first to check for busy inodes and second
+	to delete all the inodes pointing to disk inodes in the file
+	system to be unmounted.  Slower.
+
+	* Just decided to keep a ChangeLog :-)
+

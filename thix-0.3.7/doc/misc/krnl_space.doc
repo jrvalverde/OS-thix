@@ -1,0 +1,5 @@
+Modificarea dimensiunii spatiului virtual rezervat pentru kernel:
+- se modifica in mm.h KERNEL_PAGE_TABLES
+- se modifica in startup.s KERNEL_RESERVED_SPACE pentru a calcula corect
+  pointerii primiti ca parametrii de catre apelurile sistem.
+- se modifica in startup.s dimensiunea lui kernel_page_table.

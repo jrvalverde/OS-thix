@@ -1,0 +1,50 @@
+WARNING:  The information in  this file might be out of date !
+
+1. FILESYSTEM
+
+    a.  STERGEREA DIRECTORULUI CURENT
+	    Daca cumva directorul curent al unui proces nu mai exista (fie
+	ca si l-a sters singur sau ca i l-a sters altcineva) inodul cores-
+	punzator va avea i_nlinks == 0 si deci nici o operatie referitoare
+	la el nu va mai fi permisa in namei. Testul de i_nlinks == 0 se va
+	putea face si pe directorul radacina al procesului  care  apeleaza
+	namei in eventualitatea ca a fost sters (evident root-ul global nu
+	poate fi sters dar poate ca procesul a apelat chroot()).
+	    La fisiere, daca am deschis un fisier si l-am sters (el fiind
+	inca deschis) voi putea sa lucrez cu el pana il inchid fara proble-
+	me pentru ca  nref != 0  si practic fisierul nu a fost sters. Desi
+	principiul e acelasi si la directoare nu pot citi ( cu readdir() )
+	dintr-un director care a fost sters.
+	    Daca nu permit in  namei()  utilizarea  inodului  directorului
+	sters nu se mai poate face chdir(".."). Se mai poate totusi executa
+	chdir("\").
+	RAMANE IN STUDIU.
+
+    b.  BUFFER-area FISIERELOR SPECIALE
+	    Nu am bufferat fisierele speciale pt. ca, in cazul dischetei de
+	exemplu, nu ma prindeam cand se schimba discul. Cred ca in momentul
+	in care va fi facuta logica de change-line voi putea buffera si fi-
+	sierele speciale. Trebuie totusi sa existe o modalitate prin care
+	sa specific daca un dispozitiv special e buffer-abil pt. ca s-ar
+	putea ca nu toate dispozitivele sa detecteze schimbarea.
+
+    d.  INCUIEREA FISIERELOR SPECIALE
+	    Nu se incuie inodurile fisierelor speciale pentru ca terminalele
+	pot sta o gramada de vreme in read si orice tentativa de a executa
+	ls -la in /dev va bloca ls-ul pana cand se citeste de la toate
+	terminalele active dintr-o data (sau macar in ordinea in care le
+	acceseaza ls-ul, ceea ce este mai mult decat improbabil)
+
+   e.   KLOG
+	    klog_write() *NU ARE VOIE SA DOARMA*.  Daca face asta,
+	kernelul se va bloca instant.  Daca printk nu doarme, cand se umple
+	buffer-ul de mesaje, un nou proces care ar vrea sa scrie in
+	buffer n-ar avea unde si, neputand dormi, ar renunta sa mai scrie
+	mesajul.  Asta evident va duce la pierderea de mesaje, in cazul
+	in care klogd-ul nu e suficient de rapid (si se intampla de
+	multe ori sa nu fie, desi n-am incercat sa-i dau prioritate
+	mai mare).  Deci, in mod normal, cand kernelul e pe debug-level-uri
+	mici, cand nu sunt generate multe mesaje, un buffer de 4K e suficient,
+	dar sa existe posibilitatea sa maresc acest buffer, pentru a evita
+	pe cat posibil pierderea de mesaje pe nivele de debug mari.
+

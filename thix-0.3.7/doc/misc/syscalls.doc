@@ -1,0 +1,45 @@
+		lstat
+link
+symlink
+pipe
+ioctl
+select
+readlink
+chroot
+	setrlimit
+	getrlimit
+	getrusage
+		getpriority
+		setpriority
+		setitimer
+		getitimer
+		waitpid
+		setsid				POSIX.1
+	setpgid				POSIX.1
+		getpgrp				POSIX.1
+	mount
+	umount
+	swapon
+	swapoff
+
+
+
+
+emulabile:
+wait4
+
+neimportante acum:
+fsync
+ftime			BSD, obsolete
+getpgid			BSD
+siggetmask
+sigsetmask
+uselib
+getgroups
+setgroups
+ptrace
+prof
+gettimeofday
+settimeofday
+setreuid
+setregid

@@ -1,0 +1,430 @@
+
+
+		  The Thix Operating System Architecture
+
+			      Tudor Hulubei
+		  "Polytechnica" University of Bucharest
+
+
+Abstract
+
+This paper is intended to be a presentation  of the UNIX kernel I have
+written during the  past year. Thix (that's  its name) it's  an almost
+complete  implementation     of  the   POSIX.1   standard (IEEE    Std
+1003.1-1988). I've  written it from  scratch, without using or looking
+at anybody else's source code.
+
+My main  purpose was to    learn about operating systems  design   and
+architecture,   kernel  algorithms,      resource allocation,  process
+scheduling, memory management policies, etc. The result is a new POSIX
+compliant  free UNIX kernel with  most  of the features real operating
+systems have: virtual  memory,  demand  paging, protection,  swapping,
+etc. It is not perfect,  it probably has  many bugs, but in time  they
+will get  fixed and  the kernel  will become  more stable.  Since many
+high-quality    free software  is  available  on  the Internet, coming
+especially from the GNU project, I will try to port some of them to my
+system, in the idea of getting real functionality.
+
+
+
+1. Introduction
+
+Thix is a multitasking UNIX/POSIX compatible  operating system. It was
+designed as a  monolithic kernel,  with no  special processes for  the
+file system, memory or    other system resource management.   The only
+dedicated kernel process is the swapper,  automatically started by the
+system when low on memory.
+
+I've developed the Thix kernel under Linux, using the widely known GNU
+C compiler. This  compiler supports  a  number of extensions  to the C
+language,  most  of them designed to   get  better assembly code, and,
+since the  Thix kernel is  heavily based upon  them, compiling it with
+any other C  compiler might be  difficult. For the sake of efficiency,
+some parts of the kernel and some machine dependent routines have been
+written in assembly language using the GNU assembler.
+
+
+
+2. Memory management policies
+
+In this  section,   I discuss the virtual  memory   design, the demand
+paging and swapping algorithms.
+
+
+2.1. Virtual memory design
+
+On Intel processors, 32 bits  virtual  memory systems can be  designed
+using page tables and page  directory tables:  a page directory  table
+points    to 1024  page  tables,  each   one collecting  miscellaneous
+information about 1024 physical pages. The physical  page size is 4096
+bytes so the virtual address space is 4G.
+
+Generally, memory protection means to  prevent one process to write in
+another process  address space.  I've done  this  using  separate page
+directory tables  and page tables  for each process. This way, virtual
+address spaces are completely different so there  is no possibility of
+one process to access some other process  data space. There are 2 page
+tables (in the current implementation) at the beginning of the virtual
+address space  that  are  shared by all   the processes.  These  pages
+contain kernel code and data  structures, and cannot be accessed while
+in  user mode. When running in  kernel mode (as a  result of a context
+switch,  interrupt or exception) a  process  has complete control over
+operating system resources but it will  never do anything stupid since
+it's running kernel code.
+
+Intel processors can't run  without a proper segmentation system. Each
+process     uses a local    descriptor  table   (LDT)  to access   its
+data/code. The LDT  contains  descriptors for code and  data segments,
+covering the virtual address space between 8M  and 4G. While in kernel
+mode, all  the  processes are using the   same global descriptor table
+(GDT)  code/data segments descriptors   to  access the entire  virtual
+address space.
+
+
+2.2. Demand paging
+
+The algorithm used in implementing the  demand paging uses a vector of
+structures collecting information  for each physical memory  page: how
+many processes  are  sharing it, how old  the  page is, the block  and
+device numbers  the  page  is connected  to, busy   flags, etc.    The
+structures in this vector are linked together  in a double linked list
+and in a hash table: the  linked list implements  a pool of free pages
+while the hash table is used  to find very fast  the page connected to
+some block on the file system or swap device.
+
+If the page is  not in memory, information  about it (usually the page
+type and the device and block numbers where the page can be found) are
+kept in  the page tables. The processor  uses only the  first bit as a
+"presence" flag.
+
+When a page  exception occurs, if the required  page is in the pool of
+free pages, it is simply deleted from the free  list and its number is
+put in the corresponding page table entry.  If the page can't be found
+in the free list, it will  be loaded from  the file system or from the
+swap device (this applies only to non-bss pages).
+
+
+2.3. Swapping
+
+The process with the id 0 is the swapper. Its job is to free up memory
+when the number of  free memory pages is below  a threshold value. The
+swapper is built-in into the kernel and can  be started by any process
+that needs a free  page and, allocating it,  finds out that the number
+of free pages  decreased under the  threshold  value (32 pages in  the
+current implementation).
+
+When  started, the swapper searches  in the processes page tables some
+pages eligible to be swapped or discarded. If a  page was not recently
+used it increments its age field. If a page is old enough (its counter
+has reached the  age limit), the  swapper gets rid  of it according to
+its type: bss pages and  pages that can be  loaded later from the file
+system are simply discarded. Modified pages are swapped out.
+
+The swapper process has  some additional work to  do. It must  free up
+memory  from the processes  user   level  stack.  This  is a   special
+situation,  different from the  situation when the kernel frees memory
+used by  processes data segment.  When  a process wants  to free  some
+memory, it  calls the standard C routine  free() and  sometimes free()
+use the brk() system call  to notify the kernel  about the decrease of
+the data segment limit.  There is no such  way of notifying the kernel
+about the  decrease of   the amount  of  memory  used by  the  process
+stack. The only way the kernel can figure out how  many pages are used
+by the  process stack   is to  look  at  the  process stack   register
+(%esp). This can  give a good approximation  of  what it needs and  it
+will use it to free  the memory between the  current stack pointer and
+the old  stack limit. The  kernel checks the  stack state  on the page
+fault  routine too, but  in the special case   of processes with small
+code/data  and   big stack,  if the process    doesn't  need its stack
+anymore,  and  no page fault   occur, we can't  free its  unused stack
+memory until it exits. In even a worse  situation, the swapper, in its
+attempt of swapping out not recently used memory,  will find the stack
+memory pages eligible for swap and  swap them, even though the process
+will never need them  again. Therefore we can't rely  only on the page
+fault routine to remove the unused stack memory.
+
+When a page is inserted in the free list, its connection with the file
+system or swap  device block is not broken,  in the idea of being able
+to get it back quickly  if the page  is required soon by the processes
+it belongs to,  without loading  it from the  buffer cache  or, worse,
+from the disk.
+
+The swapper gets   rid of   pages not  recently   used.  There  is   a
+possibility that a process  that didn't use   a page for a long  time,
+suddenly   needs it. If  the  page was  swapped   out, but  it was not
+reallocated, there is a  chance that the process finds  it on the free
+list. The advantage of having good page-block  connections in the free
+list  might show up  when a  program is started   a short time after a
+previous instance of it exited (typically when the make utility starts
+the compiler several times).
+
+On a heavily loaded systems, the swapper might swap out pages that are
+not very old, so keeping  the  connections between  the pages and  the
+file system or  device blocks  intact   until reallocation is   really
+important.
+
+
+2.4. Shared executables
+
+Thix memory management policies allow  multiple instances of the  same
+executable to share code, data and stack pages.  Code pages are shared
+all   the time,    while   data and   stack  pages  are   shared until
+modified. When  that happens, a  copy of the  modified page is created
+for the instance that  modified it. The  other instances will continue
+to use the old page.
+
+
+2.5 Dynamic memory allocation
+
+There are  several algorithms in  the kernel that  require dynamically
+allocated chunks of  memory smaller  than the  page  size (4096).  The
+usual example  is the buffer cache  mechanism that use buffers of 512,
+1024 or 2048  bytes length. The kernel provides  a very fast method of
+doing malloc()/free() into the  kernel,  using fixed size chunks.  The
+allocator use a different linked list of pages for each possible chunk
+size. It picks up pages from the free list, inserts them in the linked
+list corresponding    to  the  required   size and   divides them   as
+necessary. When deallocating,  if all the chunks  in a  page are free,
+the page goes back in the free list.
+
+
+2.6. Protection
+
+The  kernel must protects  processes   against unauthorized access  to
+their virtual    address space. This   is  done  automatically  by the
+hardware because we      have  separate  address    space   for   each
+process. Theoretically, any process can read/write from/to any virtual
+address, because any address belongs to its  address space. The kernel
+will map  a page at  the specified address  when the page fault occur,
+and the process will happily resume execution. Practically, the kernel
+will not  let the process access   any address after the  data segment
+limit as specified by  the brk() system call.  Every  attempt to do so
+will fail and the process will receive a segmentation violation signal
+(SIGSEGV).
+
+The kernel code and data structures  are protected by the segmentation
+system. Since no segment descriptor in the local descriptor table maps
+over the kernel  area, no process will  ever be able to  overwrite the
+kernel code or data structures while running in user mode.
+
+
+
+3. System calls
+
+System calls are implemented as a software interrupt  (int 0x30).  The
+parameters are passed  on the stack and the  system call number in the
+%eax register. The  system detects invalid  system calls  and performs
+parameter checking. There is no way (I hope) that a process can damage
+the  kernel by passing an invalid  parameter to a system call. Passing
+an  invalid pointer   to a system  call  is  really dangerous  because
+running in  kernel mode means   we have access  to  the entire virtual
+address space (including  the kernel) so writing  to a pointer without
+checking it first  might corrupt kernel memory.  Not checking the file
+descriptors  passed as  parameters   to the write()  system  call  for
+example,  might lead to an attempt  of the kernel  to read/write at an
+invalid address which can be fatal.
+
+
+
+4. Sleep and wakeup
+
+Ones of the most used routines in the kernel are sleep() and wakeup().
+Each time a process must wait for a resource to become available or an
+event to occur, it will  go to sleep until  the process that uses that
+resource wakes  it up. That  means the process  changes its state from
+"ready to run" to "asleep"  and then back  to "ready to run" when  the
+resource is available (or the event  occurred). When the process wakes
+up it must check if the resource is really available and eventually go
+back to  sleep if another process  was scheduled before  it and locked
+the resource again.
+
+There are many kinds of events a process can wait for: I/O completion,
+locked  resources  to  become unlocked,   free  memory pages, signals,
+terminal input/output,  etc. Since some  events,  like I/O completion,
+are guaranteed to  happen  and some events,  like  terminal input, are
+not,  the kernel use different  sleep priorities for processes waiting
+different  kinds of events   ("sure"  or not).  Processes waiting  for
+"sure" events to  happen are sleeping  on higher priorities and cannot
+be interrupted,  processes waiting for events  that are not "sure" are
+sleeping on lower priorities and can be interrupted by signals.
+
+We must  differentiate the priorities  used  for "sure" events because
+there is more important to run a process that wakes up  as a result of
+I/O completion than a process that wakes up because the superblock has
+become unlocked. I/O completion will eventually free some buffers that
+the second  process might need, so  doing otherwise will  decrease the
+system  performance. As a result,   I've used eight different priority
+levels for processes sleeping at an uninterruptible priority level.
+
+
+5. Process scheduling
+
+The Thix process scheduler is implemented  using one list of processes
+for each  priority level. From the user  point  of view priorities are
+between   -19 to 19  (-19  being  the  highest one).  The  kernel uses
+internally priorities from 1 to 55.  User level priorities are between
+1  and 39,  interruptible priority levels  are between  40 and  47 and
+uninterruptible priority levels are between 48 and 55.
+
+Every time the scheduler routine is called,  it will pick up a process
+from the higher  priority  list that  has one,   move  it on a   lower
+priority list and then  run it. When all  the "ready to run" processes
+have reached the  lowest priority level, they  are moved back into the
+list corresponding to their base priority. The scheduler remembers the
+last priority level used and starts checking from the highest priority
+level free list only when a new process wakes up.  In the normal case,
+the check   for  "ready to  run"  processes  starts at  the remembered
+priority level and finds an eligible to run  process at the very first
+step. Due to this and to the fact that the assembly code generated for
+the main  loop by   the GNU  C  compiler is   exactly 4  machine  code
+instructions long, the scheduler is extremely fast.
+
+Intel  processors  reset their internal  page  cache at  every context
+switch.  This   is normal   since  after a   context  switch, the  new
+scheduled  process will use  another hierarchy of page directory table
+and page tables and the entries in the processor cache will be invalid
+anyway. However,  when the new  scheduled  process is the same  as the
+previous one, no context switch is done, in the attempt of avoiding an
+useless time consuming operation  and of preserving the processor page
+cache. In  this special  case,  if  the  scheduler would  access  very
+scattered memory locations while trying to find a new process eligible
+to  be run, most of  the entries in  the processor page cache would be
+lost.  This  is the  reason why the  scheduler  doesn't  keep its data
+structures in the  u_area, a big   per process structure  used to keep
+information about  all the  processes in the   system, but in separate
+data  structures, trying to reduce as  much as possible the changes in
+the processor page cache.
+
+
+
+6. The buffer cache
+
+Every  modern UNIX system has  a built-in buffer cache mechanism. This
+is  usually a dynamic  one, meaning that the buffer  cache can use the
+entire free memory, as needed.
+
+The  algorithm I've used in  the implementation  of the dynamic buffer
+cache is an extension of the algorithm described in the Maurice Bach's
+book "The design of the UNIX system". That algorithm  use a fixed size
+memory area for the buffer cache, using a single double linked list of
+buffer structures, lacking the possibility of using the excess of free
+memory for the buffer cache.
+
+For each  buffer   in the  system,   there  is  a  structure   storing
+information about  it. These structures  are  linked together  in  two
+double linked lists.   The first one  contains unused structures,  the
+second one structures pointing to buffers containing valid data.
+
+The basic idea  is having a number of  buffer structures big enough to
+cover the entire amount of buffers needed at a  given moment. A single
+linked  list is not  enough for an  efficient buffer cache management,
+because if   the system has   to shrink the space  used  by the buffer
+cache, the operation of parsing the linked list in order to get rid of
+some buffers and to write to  the disk the delayed  write ones will be
+slowed down by  a large amount  of  unused structures that need  to be
+skipped.
+
+This was the  reason why I've used two  linked lists. If we have  more
+free  memory and we can use  it for  the  buffer cache, the structures
+needed for    the new buffers    are got from   the  first  list (that
+containing the  unused buffer  structures).  These structures will  be
+deleted from  there and inserted into the  second linked list. When we
+have  to free some  memory used by the buffer   cache, the linked list
+used for valid  buffers will be parsed,   freeing up the used  memory,
+removing the  structures from there and inserting   them in the unused
+structures linked list until enough memory has been freed.
+
+The file  system can't work without the  buffer cache.  In the special
+case when all the valid  buffers have been  discarded and there is not
+enough memory for  new ones, the system  would be unusable. This leads
+to the idea  of having a dedicated pool  of free pages,  big enough to
+keep the system going.  The  dynamic kernel memory allocation routines
+can receive a pointer to a local allocator  function, specific to each
+kernel  algorithm, used to get   memory  for the dedicated free  pages
+pool. If such a pointer is specified,  the kernel will try to allocate
+memory from the  dedicated free pages  pool before  trying  to use the
+global one.
+
+
+
+7. The file system
+
+In the first  version  of the Thix  kernel  I've implemented the  file
+system as described in the Maurice Bach's book "The design of the UNIX
+system". The  file system described there keeps  track of  free blocks
+using a linked list and I've  figured out that this implementation has
+some  major disadvantages  over  that kind of   file  systems that use
+bitmaps for the same purpose:
+
+    a.  The file system  fragmentation cannot  be controlled. When the
+kernel needs a new block, it has no other  choice than using the block
+in  the head  of  the linked list. Since   after a period of  time the
+linked list contains random block numbers, new files will be scattered
+all over the disk.
+
+    b.  The seek   time cannot  be   minimized. For the   same reasons
+described  before, disk heads must seek  to  random places in order to
+read the required file blocks.
+
+    c. When the  superblock cache of inode  numbers becomes empty, the
+kernel must read  several inodes  from disk and  check  their state in
+order to get free ones.
+
+    d. Not being able to read one single block on  the linked list can
+easily lead to the lost of the entire free list  pool. The file system
+can become unusable until repaired with the fsck utility.
+
+Modern UNIX kernels are dividing  the file system in cylinder  groups,
+allocating new blocks and inodes from one cylinder group  at a time in
+the attempt of reducing fragmentation and seek time. For each cylinder
+group  there is a bitmap to  keep track of free  blocks and another to
+keep track of   free inodes.  The   new  version of the   Thix  kernel
+implements  a similar, bitmap based file  system  structure, which has
+really  better performances   than  the old    one  and is much   more
+stable. Each time the kernel switches to  another cluster (this is the
+name I've  used for "cylinder group") because  there  are no available
+resources  of one kind  (inodes or  blocks), it  tries to allocate the
+other kind of resources  from the same  cluster or  from a very  close
+one, in order to reduce the seek time. At the moment I am writing this
+paper there is nothing done yet to keep low fragmentation rates, but I
+am working on it.
+
+
+8. Device drivers
+
+The kernel currently has device drivers for the floppy disks, IDE hard
+disks, the null device,  the mem and  kmem devices. It also implements
+12 virtual terminals (vtty).
+
+
+
+9. Future work
+
+First of all,  I intend to test as  well as possible the code  written
+since today. No one will ever be able to  say that an operating system
+has  no  bugs because they are   very hard to test.   Porting software
+appears to be one of the better ways of testing a new kernel.
+
+Many things  have to be done to  the kernel, especially  in the memory
+management  and in the  file   system. Things like  mapping  files and
+devices   into   memory,   supplementary  groups,  file    locks, IPC,
+etc. should be implemented even though many programs will work without
+them.
+
+Many  device drivers   have to  be written,  printer  and  serial port
+drivers being really important.
+
+I also  intend to enhance  the process scheduler,  to make it  able to
+differentiate between classes of  users. Many UNIX systems I've worked
+with lack  this  ability and start thrashing   if  some malicious user
+starts a lot of time consuming  processes. The kernel  must be able to
+control the amount of CPU time that processes with a given user id can
+get. Limiting  the  number of processes a  user  can start (CHILD_MAX)
+doesn't seem to be good enough.
+
+
+10. References
+
+Maurice J. Bach  - "The design of the UNIX operating system"
+Andrew Tanenbaum - "Operating Systems"
+Donald Knuth     - "The Art of Computer Programming"
+The GNU C library documentation

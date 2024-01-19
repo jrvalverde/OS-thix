@@ -1,0 +1,73 @@
+
+	    Thix Operating System - Major/Minor Device Numbers
+	    ==================================================
+
+This file  contains the list of all  device drivers of the Thix kernel
+and the associated major/minor numbers.
+
+A device number is a 16  bit number computed from  the major and minor
+device numbers  by using the major  number  the higher  8 bits and the
+minor number as   the lower  ones.  That   is, the   device number  of
+/dev/hda3 is 0x0204.
+
+
+	Major device numbers:
+	---------------------
+
+		- floppy        (/dev/fdX)	0x01
+		- harddisk      (/dev/hdX)	0x02
+		- virtual ttys  (/dev/ttyX)	0x03
+		- mem           (/dev/mem)	0x04
+		- kmem          (/dev/kmem)	0x05
+		- null          (/dev/null)	0x06
+		- indirect tty  (/dev/tty)	0x07
+		- line printer  (/dev/lpX)	0x08
+		- kernel log    (/dev/klog)	0x09
+
+	Minor device numbers:
+	---------------------
+
+		- /dev/fd0			0x00
+		- /dev/fd1			0x01
+
+		- /dev/hda			0x00
+		- /dev/hdb			0x01
+
+		- /dev/hda1			0x02
+		- /dev/hda2			0x03
+		- /dev/hda3			0x04
+		- /dev/hda4			0x05
+
+		- /dev/hdb1			0x06
+		- /dev/hdb2			0x07
+		- /dev/hdb3			0x08
+		- /dev/hdb4			0x09
+
+		- /dev/tty1			0x00
+		- /dev/tty2			0x01
+		- /dev/tty3			0x02
+		- /dev/tty4			0x03
+		- /dev/tty5			0x04
+		- /dev/tty6			0x05
+		- /dev/tty7			0x06
+		- /dev/tty8			0x07
+		- /dev/tty9			0x08
+		- /dev/ttyA			0x09
+		- /dev/ttyB			0x0A
+		- /dev/ttyC			0x0B
+
+		- /dev/mem			0x00
+
+		- /dev/kmem			0x00
+
+		- /dev/null			0x00
+
+		- /dev/tty			0x00
+		- /dev/tty0			0x00
+
+		- /dev/lp0			0x00
+		- /dev/lp1			0x01
+		- /dev/lp2			0x02
+		- /dev/lp3			0x03
+
+		- /dev/klog			0x00

@@ -1,0 +1,30 @@
+Tue May 14 00:18:48 1996  Tudor Hulubei  <tudor@chang.pub.ro>
+
+	* vtty.c (update_leds): Now uses keyboard_ready() instead of the
+	brain damaged kbd_wait.  Thanks to Liviu Dudau who figured out the
+	problem.
+
+Mon Apr  8 09:47:30 1996  Tudor Hulubei  <tudor@chang.pub.ro>
+
+	* vtty.c (vtty_keyboard_interrupt): The keyboard problem has been
+ 	fixed.  0xf0 was incorrectly setting igncnt to 1.  Now the first
+ 	key pressed is correctly detected.  Also, 0x00 & 0xff which signal
+ 	"keyboard buffer full" are now catched.
+	(struct): kbd{head,tail,count} are now volatile.
+
+Sun Apr  7 16:12:00 1996  Tudor Hulubei  <tudor@chang.pub.ro>
+
+	* lp.c (lp_write): Implemented.  Not tested, though...
+
+	* vtty.c (vtty_open): Fixed to return -ENXIO if the minor number
+	is invalid.
+
+Fri Mar 29 21:12:18 1996  Tudor Hulubei  <tudor@chang>
+
+	* vtty.c (keys): All the escape sequences for ESC (\x1b) have been
+	converted to \e.  This is a GNU C extension, but Thix cannot be
+	compiled woth other compiler anyway.
+
+	* vtty.c (keys): Alt-BACKSPACE & Alt-TAB changed to return ESC
+	BACKSPACE & ESC TAB, as they are supposed to.
+	

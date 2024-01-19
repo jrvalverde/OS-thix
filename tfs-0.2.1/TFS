@@ -1,0 +1,27 @@
+
+/*
+ *			Thix File System structure:
+ *
+ *  -------------------------------------------------------------------------
+ *  | BB | SB | SSBL | BBL ... |    C0    |    C1    |    C2    | ....	    |
+ *  -------------------------------------------------------------------------
+ *
+ *  BB   - boot block
+ *  SB   - superblock
+ *  SSBL - second stage boot loader
+ *  BBL  - bad blocks list
+ *  C0   - cluster number 0
+ *  C1   - cluster number 1
+ *  C2   - cluster number 2
+ *
+ *			Thix File System Cluster structure:
+ *
+ *  -------------------------------------------------------------------------
+ *  | SBB | IBMP | BBMP |       Inodes        |            Blocks	    |
+ *  -------------------------------------------------------------------------
+ *
+ *  SBB  - superblock backup
+ *  IBMP - inodes bitmap
+ *  BBMP - blocks bitmap
+ *
+ */

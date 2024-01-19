@@ -1,0 +1,7 @@
+
+- chestiile specifice nu pot fi compilate (da eroare) si nu ma prind de ce
+- problemele apar in general datorita faptului ca structurile folosite de
+biblioteca pot diferi de cele definite/folosite de kernel. MARE ATENTIE !
+n   - struct procinfo   ??? (trebuie tinuta la zi)
+n   - struct sysinfo    ??? (trebuie tinuta la zi)
+n   - struct ustat      ???

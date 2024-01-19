@@ -1,0 +1,31 @@
+
+INT 13h index table.
+
+Function	Sourcer name		New name	Action
+==============================================================================
+00  		sub_78			HD_RESET
+01  		sub_82			HD_GET_ERROR	get last error
+02  		sub_83			HD_READ		read sectors
+03  		sub_84			HD_WRITE	write sectors
+04  		sub_85			HD_VERIFY	verify sectors
+05  		sub_86			HD_FORMAT	format track
+06  		sub_77
+07  		sub_77
+08  		sub_80			HD_GET_PARAM	get hd params
+09  		sub_88			HD_SET_PARAM	set hd params
+0A 		sub_89			HD_LONG_READ	read long sectors
+0B 		sub_90			HD_LONG_WRITE	write long sectors
+0C 		sub_91			HD_SEEK		seek
+0D 		sub_79			HD_RECALIBRATE	recalibrate
+0E 		sub_77					reserved
+0F 		sub_77					reserved
+10 		sub_92			HD_CHK_READY	check if hd is ready
+11 		sub_93
+12 		sub_77					reserved
+13 		sub_77					reserved
+14 		sub_94					reserved
+15 		sub_81			HD_GET_INTERF	get interface type
+16 		sub_77					check media change
+17 		sub_77
+18 		sub_77
+19 		sub_96

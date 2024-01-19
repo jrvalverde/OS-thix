@@ -1,0 +1,246 @@
+	 
+\documentstyle[boxedminipage,a4wide,epsf,12pt]{article}
+
+\def\a#1{
+	{\bf #1}
+}
+\def\bi{
+	\hspace*{0.0cm}
+}
+\def\bia{
+	\hspace*{0.6cm}
+}
+\def\bib{
+	\hspace*{1.2cm}
+}
+\def\bic{
+	\hspace*{1.8cm}
+}
+\def\bid{
+	\hspace*{2.4cm}
+}
+\def\bie{
+	\hspace*{3.0cm}
+}
+\def\bif{
+	\hspace*{3.6cm}
+}
+\def\big{
+	\hspace*{4.2cm}
+}
+\def\bih{
+	\hspace*{4.8cm}
+}
+
+\def\thefootnote{\fnsymbol{footnote}}
+
+\title{\bf Repararea Sistemelor de Fisiere Thix}
+
+\author{{\em Tudor Hulubei}\\
+        Facultatea de Automatica si Calculatoare\\
+	Universitatea Politehnica Bucuresti\\
+        Romania}
+
+\date{3 Februarie, 1996}
+
+\begin{document}
+
+\maketitle
+
+\bibliographystyle{plain}
+
+\large
+
+\setlength{\parskip}{7pt plus 2pt minus 1pt}
+
+
+\section{Introducere}
+
+
+Acest proiect prezinta implementarea utilitarului de reparare a
+sistemelor de fisiere {\bf tfs} ({\bf Thix File System}) utilizate de
+kernelul de Thix.  Repararea sistemului de fisiere este o operatie
+delicata si care poate duce la distrugerea partiala sau totala a
+intregului sistem de fisiere daca nu este efectuata corect, dar este
+de asemenea o operatie extrem de utila in faza de dezvoltare a unui
+nucleu de sistem de operare.  Pentru o mai buna intelegere a
+algoritmilor folositi voi incepe prin a descrie structura sistemului
+de fisiere tfs, apoi voi prezenta implementarea curenta a utilitarului
+{\bf fsck}.
+
+
+\section{Structura Sistemului de Fisiere}
+
+
+Ca multe dintre sistemele de fisiere moderne, {\bf tfs} este organizat
+in clustere.  Aceasta organizare permite implementarea unor algoritmi
+eficienti de optimizare a accesului la disk, incercand sa impuna in
+masura posibilului alocarea blocurilor si a inodului unui fisier
+intr-un anumit cluster.  Acest lucru permite atat evitarea
+fragmentarii cat si minimizarea timpului de pozitionare a capetelor
+discului ({\bf seek time}).
+
+Primul bloc din {\bf tfs} este blocul de boot.  El contine prima parte
+a incarcatorul sistemului de operare (first stage boot loader).  Acest
+prim incarcator de mici dimensiuni are rolul de a porni un al doilea
+incarcator (second stage boot loader), un program complex ce cunoaste
+structura sistemului de fisiere si este capabil sa localizeze pe disc
+blocurile ce alcatuiesc nucleul sistemului de operare (nucleul este un
+fisier obisnuit), sa-l incarce si sa-i dea controlul.  Spatiul alocat
+celui de-al doilea incarcator este rezervat la crearea systemului de
+fisiere.
+
+Imediat dupa zona rezervata celui de-al doilea incarcator se gaseste
+zona rezervata blocurilor defecte.  Ca si in cazul incarcatorului
+sistemului de operare, dimensiunea acestei zone se stabileste la
+crearea sistemului de fisiere.
+
+Restul discului este folosit pentru date.  Spatiul ramas este impartit
+intr-un numar de clustere, fiecare dintre acestea fiind de fapt un
+sistem de fisiere in miniatura.
+
+Un cluster este alctuit din:
+
+
+\begin{itemize}
+
+\item o copie a superblocului ce este actualizata de sistemul de
+operare la fiecare actualizare a superblocului (la executia apelului
+sistem {\bf sync()} si la demontarea sistemului de fisiere - {\bf
+umount()}).
+
+\item o tabela de biti continand informatii referitoare la
+alocarea inodurilor din clusterul respectiv.
+
+\item o tabela de biti continand informatii referitoare la
+alocarea blocurilor de date din clusterul respectiv.
+
+\item o zona ce contine inodurile propriu-zise.
+
+\item o zona ce contine blocurile de date.
+
+\end{itemize}
+
+Tabelele de biti pentru inoduri si blocuri ocupa un bloc (1024 bytes),
+putand referi maxim 1024*8=8192 inoduri sau blocuri, cate un bit
+pentru fiecare, specificand starea inodului sau blocului respectiv:
+alocat sau liber.
+
+Aceasta abordare permite alocarea blocurilor si inodurilor dintr-un
+anumit cluster pana cand ele se epuizeaza, moment in care se trece la
+un alt cluster, in general cel care contine cel mai mare numar de
+inoduri si blocuri libere.  De asemenea se pot aloca pentru fisiere
+blocuri care se gasesc pe disc in zone apropiate: odata alocat un bloc
+pentru un fisier, se poate cauta in tabela de alocare a blocurilor cel
+mai apropiat bloc disponibil, pentru a micsora pe cat posibil
+fragmentarea.
+
+
+\section{Utilitarul fsck}
+
+
+\subsection{Verificarea Superblocului}
+
+
+Prima faza a repararii sistemului de fisiere consta in verificarea
+consistentei superblocului.  Pentru aceasta se verifica initial
+numarul magic si suma de control a superblocului.  Acestea trebuie sa
+fie corecte, altminteri {\bf fsck} va refuza sa continue.  Astfel {\bf
+fsck} nu va incerca sa repare sisteme de fisiere {\bf non-tfs}.  Chiar
+daca exista inconsistente in structura sistemului de fisiere si
+versiunea curenta a superblocului nu reflecta structura curenta a
+datelor de pe disc, suma de control a superblocului si numarul magic
+trebuie sa fie corecte (numarul magic este setat la crearea sistemului
+de fisiere iar suma de control la fiecare actualizare a
+superblocului).
+
+In continuare se verifica consistenta campurilor din superblock, cum
+ar fi dimensiunea intrarilor in director, numarul total de blocuri si
+inoduri din sistemul de fisiere, etc.  Eventualele erori sunt
+raportate, corectiile urmand sa se faca ulterior in momentul in care
+intregul sistem de fisiere va fi parcurs si se vor cunoaste valorile
+corecte.
+
+
+\subsection{Verificarea Inodurilor si a Blocurilor}
+
+
+Al doilea pas consta in verificarea consistentei informatiei din
+tabelele de alocare ale inodurilor si blocurilor din fiecare cluster.
+Toate inodurile marcate {\em liber} in tabela de alocare trebuie sa
+contina 0 in campul {\bf di\_mode} si nu trebuie sa aiba link-uri.
+
+Inodurile ce sunt alocate trebuie sa contina un tip valid de fisier in
+campul {\bf di\_mode}, altminteri {\bf fsck} va cere o valoare de la
+tastatura.  Valoarea implicita este {\bf S\_IFREG} (fisier obisnuit).
+De asemenea, un inod alocat trebuie sa aiba cel putin un link.
+
+Odata efectuate aceste teste, pentru fiecare inod folosit se
+calculeaza numarul de blocuri utilizate, parcurgand atat lista de
+blocuri directe din inod cat si blocurile indirecte.  Numarul total de
+blocuri folosite trebuie sa corespunda campului {\bf di\_blocks} din
+inod.  In caz contrar, campul {\bf di\_blocks} este corectat.
+
+Pe parcursul verificarii inodurilor se construiesc in memorie tabelele
+de alocare a blocurilor.  Pentru fiecare bloc ce apartine unui inod
+(este alocat) se seteaza bitul de {\em alocat} in tabela de alocare a
+blocurilor din clusterul corespunzator pentru a putea compara ulterior
+tabelele calculate cu cele ce se gasesc pe disc si a se putea face
+eventualele corectii.
+
+Daca erorile detectate in pasul 2 sunt severe si nu pot fi in
+intregime corectate pe parcurs, {\bf fsck}-ul se va opri.  In acest
+caz se poate relua executia primelor doi pasi de oricate ori este
+nevoie pentru a corecta toate erorile.  Numai dupa aceasta se va putea
+trece la pasul 3.  Detectia unei erori duce la incrementarea
+contorului global de erori, dar daca se poate face corectia, contorul
+este decrementat in asa fel incat sa se poata trece la pasul 3.
+
+
+\subsection{Verificarea Fisierelor si a Directoarelor}
+
+In pasul 3 se realizeaza o parcurgere a sistemului de fisiere
+orientata pe directoare/fisiere (spre deosebire de parcurgerea facuta
+la pasul 2 orientata pe inoduri/blocuri).
+
+Un director valid trebuie sa contina intrari pentru directoarele {\bf
+.}  si {\bf ..}.  Aceste intrari trebuie sa contina numere de inod
+valide, altminteri intrarea respectiva este stearsa.  In acest pas se
+calculeaza de asemenea numarul de link-uri ale fiecarui inod, aceasta
+informatie urmand a fi folosita in pasul urmator.
+
+
+\subsection{Reverificarea Inodurilor}
+
+In pasul 4 se verifica numarul de link-uri ale fiecarui inod.  Campul
+din inod ce specifica numarul de link-uri trebuie sa fie egal cu cel
+calculat la pasul 3 in timpul parcurgerii intregului sistem de
+fisiere.  Daca apar diferente, campul din inod este setat la valoarea
+calculata.
+
+
+\subsection{Reluarea Verificarii}
+
+
+{\bf fsck} nu va reusi intotdeauna sa corecteze sistemul de fisiere
+intr-o singura rulare.  De exemplu, inconsistente detectate (si
+eventual corectate) la pasul 3 pot duce la inconsistente detectabile
+doar la pasul 2.  De exemplu, de abia in pasul 3 putem detecta faptul
+ca un anumit inod (altminteri corect alocat si continand blocuri
+valide) nu este referit din nici un director.  Inodul va fi marcat ca
+{\em liber} ({\bf di\_mode} = 0) in pasul 3, fara insa a-l reparcurge
+si dealoca blocurile ce-i apartin (deoarece aceasta operatie este
+implementata in pasul 2).  Ideea este de a efectua o corectie treptata
+si solida a structurii sistemului de fisiere si de evita pe cat
+posibil interferentele intre pasi.  La un nou apel al utilitarului
+{\bf fsck} se va detecta in pasul 2 faptul ca un inod nealocat contine
+pointeri la blocuri alocate si blocurile corespunzatoare vor fi la
+randul lor dealocate.
+
+Din acest motiv, {\bf fsck} va intoarce codul 0 (ok) numai daca nu a
+fost detectata nici o eroare.  Utilizand acest lucru, utilitarul {\bf
+fsck} poate fi apelat intr-o bucla ce se termina numai atunci cand
+{\bf fsck} intoarce 0 semnificand absenta erorilor in structura
+sistemului de fisiere.
+
+\end{document}

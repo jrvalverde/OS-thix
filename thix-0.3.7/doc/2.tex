@@ -1,0 +1,44 @@
+\begin{slide}{}
+
+
+{\small \bf \center 1. Process Management\\
+}
+
+\vspace{2cm}
+
+{\tiny Processes are implemented taking advantage of the Intel 80386
+processor's features:
+
+\hspace{1cm} - Task State Segments
+
+\hspace{1cm} - Local Descriptor Tables
+
+\hspace{1cm} - fast context switch instructions
+
+The scheduler's frequency is 100 Hz.  The scheduler's internal data
+is kept in separate structures, in order to avoid invalidating the
+processor's page cache.
+
+\vspace{2cm}
+
+{\small \bf \center 2. Protection\\
+}
+
+\vspace{2cm}
+
+{\bf Thix} provides a completely protected environment:
+
+\hspace{1cm} - the kernel cannot be damaged by a user level process
+
+\hspace{1cm} - processes are protected against each other
+
+\hspace{1cm} - every attempt to call an invalid system call is detected
+
+\hspace{1cm} - each system call checks the validity of its arguments
+
+\hspace{1cm} - all the machine dependent exceptions are handled
+
+
+}
+
+\end{slide}

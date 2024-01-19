@@ -1,0 +1,6 @@
+Mon Mar 11 16:11:49 1996  Tudor Hulubei  <tudor@chang>
+
+	* debug.h (DEBUG): Modified to be able to select a specific set
+	of debug levels to be displayed.  Much more flexible...
+	
+

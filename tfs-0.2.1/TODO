@@ -1,0 +1,11 @@
+
+tfsck:
+
+ - trebuie verificata existenta a mai multor fisiere/directoare cu acelasi
+nume.
+ - cand vor fi compilate chiar sub thix, ar fi bine sa inlocuiesc unsigned
+short cu nlink_t, ...
+
+mktfs:
+
+  - cand repara superblock-ul sa se uite si la backup-uri
